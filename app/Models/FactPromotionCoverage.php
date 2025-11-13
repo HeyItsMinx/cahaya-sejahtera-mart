@@ -14,7 +14,6 @@ class FactPromotionCoverage extends Model
     protected $primaryKey = ['product_id', 'store_id', 'promotion_id'];
 
     protected $fillable = [
-        'date_id',
         'product_id',
         'store_id',
         'promotion_id'
