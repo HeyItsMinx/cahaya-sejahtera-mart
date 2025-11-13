@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Http\Request;
-use App\Http\Controllers\Backends\SalesController;
-use App\Http\Controllers\Backends\ProcurementController;
+use App\Http\Controllers\SalesController;
+use App\Http\Controllers\ProcurementController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
