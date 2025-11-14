@@ -17,14 +17,13 @@ Route::prefix('/sales')->name('sales.')->group(function () {
     Route::get('/top-products', [SalesController::class, 'getTop5ProductsByGrossProfit'])->name('getTop5ProductsByGrossProfit');;
     Route::get('/filter-options', [SalesController::class, 'getFilterOptions'])->name('getFilterOptions');;
     Route::get('/overview', [SalesController::class, 'getSalesOverview'])->name('getSalesOverview');
+    // Promotions
      Route::get('/unsold-promotions-list', [SalesController::class, 'getUnsoldPromotionsList'])
         ->name('getUnsoldPromotionsList');
-
-    Route::get('/unsold-promo-trend', [SalesController::class, 'getUnsoldPromoTrend'])
-        ->name('getUnsoldPromoTrend');
-
     Route::get('/ineffective-promotions', [SalesController::class, 'getMostIneffectivePromotions'])
         ->name('getMostIneffectivePromotions');
+    Route::get('/top-successful-promotions', [SalesController::class, 'getTop5SuccessfulPromotions'])
+        ->name('getTop5SuccessfulPromotions');
 });
 
 Route::prefix('/procurement')->group(function () {

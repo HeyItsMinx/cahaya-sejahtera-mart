@@ -110,20 +110,19 @@
             </div>
         </div>
 
-        <h2 class="text-2xl font-semibold mb-4">Factless Fact: Promotion Effectiveness (Matrix 4)</h2>
+        <h2 class="text-2xl font-semibold mb-4">Promotion Analysis</h2>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Monthly Trend of Unsold Promo Items</h3>
-                <canvas id="unsoldPromoTrendChart"></canvas>
+                <h3 class="font-semibold mb-2">Top 5 Successful Promotions (by Qty Sold)</h3>
+                <canvas id="successfulPromoChart"></canvas>
             </div>
             <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
                 <h3 class="font-semibold mb-2">Top 5 Most Ineffective Promotions</h3>
                 <canvas id="ineffectivePromosChart"></canvas>
             </div>
         </div>
-
         <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h3 class="font-semibold mb-4">List of Unsold Promotional Products (Factless Fact)</h3>
+            <h3 class="font-semibold mb-4">List of Unsold Promotional Products</h3>
             <table id="unsoldProductsTable" class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
@@ -140,8 +139,8 @@
         </div>
     </div>
     <script>
-        // Chart.js global instances to allow destroying them before re-rendering
-        let grossProfitChart, top5ProductsChart, unsoldTrendChart, ineffectivePromosChart;
+        // UPDATED: Renamed variable for clarity
+        let grossProfitChart, top5ProductsChart, successfulPromoChart, ineffectivePromosChart;
         let unsoldTable;
 
         // Helper to format currency
@@ -177,7 +176,10 @@
             loadOverviewStats(params);
             loadGrossProfitTrend(params);
             loadTop5ProductsChart(params);
-            loadUnsoldPromoTrend(params);
+            
+            // UPDATED: Changed function call
+            loadSuccessfulPromoChart(params); 
+            
             loadIneffectivePromosChart(params);
             loadUnsoldProductsTable(params);
         }
@@ -305,36 +307,41 @@
         }
 
         /**
-         * Load the unsold promo items trend line chart
+         * UPDATED: Load the Top 5 Successful Promotions bar chart
          */
-        async function loadUnsoldPromoTrend(params) {
+        async function loadSuccessfulPromoChart(params) {
             try {
-                const response = await fetch('{{ route('sales.getUnsoldPromoTrend') }}?' + params);
+                // Fetch from the new route
+                const response = await fetch('{{ route('sales.getTop5SuccessfulPromotions') }}?' + params);
                 const json = await response.json();
                 if (json.success) {
                     const data = json.data;
-                    const labels = data.map(d => `${d.month_name} ${d.year}`);
-                    const values = data.map(d => d.unsold_items_count);
+                    const labels = data.map(d => d.promotion_name);
+                    const values = data.map(d => d.total_quantity_sold);
 
-                    const ctx = document.getElementById('unsoldPromoTrendChart').getContext('2d');
-                    if (unsoldTrendChart) {
-                        unsoldTrendChart.destroy();
+                    // Use the new canvas ID
+                    const ctx = document.getElementById('successfulPromoChart').getContext('2d');
+                    if (successfulPromoChart) {
+                        successfulPromoChart.destroy();
                     }
-                    unsoldTrendChart = new Chart(ctx, {
-                        type: 'line',
+                    successfulPromoChart = new Chart(ctx, {
+                        type: 'bar', // Changed from 'line' to 'bar'
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: 'Unsold Promo Items Count',
+                                label: 'Total Quantity Sold',
                                 data: values,
-                                borderColor: 'rgb(239, 68, 68)',
+                                backgroundColor: 'rgb(34, 197, 94)', // Green color for success
                                 tension: 0.1
                             }]
+                        },
+                        options: {
+                            indexAxis: 'y' // Horizontal bar chart
                         }
                     });
                 }
             } catch (error) {
-                console.error('Error loading unsold promo trend:', error);
+                console.error('Error loading successful promo chart:', error);
             }
         }
 
@@ -361,7 +368,7 @@
                             datasets: [{
                                 label: 'Failed Promo Item Count',
                                 data: values,
-                                backgroundColor: 'rgb(249, 115, 22)',
+                                backgroundColor: 'rgb(239, 68, 68)', // Red color for failure
                             }]
                         },
                         options: {

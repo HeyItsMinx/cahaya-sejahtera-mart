@@ -222,44 +222,6 @@ class SalesController extends Controller
             ->distinct();
     }
 
-    public function getUnsoldPromoTrend(Request $request)
-    {
-        $unsoldSubquery = $this->getUnsoldBaseQuery();
-        
-        // Now, join the unsold facts with their promotion's end date
-        $query = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold"))
-            ->mergeBindings($unsoldSubquery) // This is crucial
-            ->join('dim_promotion AS dp', 'unsold.promotion_id', '=', 'dp.promotion_id')
-            ->join('dim_date AS dd', 'dp.end_date', '=', 'dd.date_id') // Link to dim_date via end_date
-            ->join('dim_product AS p', 'unsold.product_id', '=', 'p.product_id') // For category filter
-            ->join('dim_store AS s', 'unsold.store_id', '=', 's.store_id') // For region filter
-            ->select(
-                'dd.year',
-                'dd.month_number',
-                'dd.month_name',
-                // Count the number of unique product/store combinations that failed
-                DB::raw('COUNT(*) as unsold_items_count')
-            )
-            ->groupBy('dd.year', 'dd.month_number', 'dd.month_name')
-            ->orderBy('dd.year', 'asc')
-            ->orderBy('dd.month_number', 'asc');
-
-        // Apply filters
-        if ($request->has('region') && !empty($request->region)) {
-            $query->where('s.region', $request->region);
-        }
-        if ($request->has('category') && !empty($request->category)) {
-            $query->where('p.category', $request->category);
-        }
-
-        $data = $query->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
     /**
      * (Recommended) Get the Top 5 most ineffective promotions,
      * ranked by the number of product/store combinations that failed to sell.
@@ -283,6 +245,40 @@ class SalesController extends Controller
             )
             ->groupBy('dp.promotion_id', 'dp.promotion_name')
             ->orderBy('unsold_items_count', 'desc')
+            ->limit(5);
+
+        // Apply filters
+        if ($request->has('region') && !empty($request->region)) {
+            $query->where('s.region', $request->region);
+        }
+        if ($request->has('category') && !empty($request->category)) {
+            $query->where('p.category', $request->category);
+        }
+
+        $data = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+    }
+
+    public function getTop5SuccessfulPromotions(Request $request)
+    {
+        // This query analyzes fact_sales (Matrix 1 & 2)
+        $query = DB::table('fact_sales AS fs')
+            // We only care about sales that actually had a promotion
+            ->where('fs.promotion_id', '>', 0) 
+            ->join('dim_promotion AS dp', 'fs.promotion_id', '=', 'dp.promotion_id')
+            ->join('dim_product AS p', 'fs.product_id', '=', 'p.product_id') // For category filter
+            ->join('dim_store AS s', 'fs.store_id', '=', 's.store_id') // For region filter
+            ->select(
+                'dp.promotion_name',
+                // This is the main metric: total items sold under this promo
+                DB::raw('SUM(fs.quantity_sold) as total_quantity_sold')
+            )
+            ->groupBy('dp.promotion_id', 'dp.promotion_name')
+            ->orderBy('total_quantity_sold', 'desc')
             ->limit(5);
 
         // Apply filters
