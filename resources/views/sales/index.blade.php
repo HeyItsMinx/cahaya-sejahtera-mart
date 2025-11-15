@@ -110,6 +110,14 @@
             </div>
         </div>
 
+        <h2 class="text-2xl font-semibold mb-4">Multi-Dimensional Analysis</h2>
+        <div class="grid grid-cols-1 gap-6 mb-8">
+            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <h3 class="font-semibold mb-2">Monthly Gross Profit Trend by Product Category</h3>
+                <canvas id="profitByCategoryChart"></canvas>
+            </div>
+        </div>
+
         <h2 class="text-2xl font-semibold mb-4">Promotion Analysis</h2>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -122,26 +130,15 @@
             </div>
         </div>
         <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h3 class="font-semibold mb-4">List of Unsold Promotional Products</h3>
-            <table id="unsoldProductsTable" class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                    <tr>
-                        <th scope="col" class="py-3 px-6">Product</th>
-                        <th scope="col" class="py-3 px-6">Store</th>
-                        <th scope="col" class="py-3 px-6">Promotion</th>
-                        <th scope="col" class="py-3 px-6">Start Date</th>
-                        <th scope="col" class="py-3 px-6">End Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+            <h3 class="font-semibold mb-4">Top 10 Unsold Promotional Products by Region</h3>
+            <canvas id="unsoldProductsChart"></canvas>
         </div>
     </div>
     <script>
         // UPDATED: Renamed variable for clarity
+        let profitByCategoryChart;
         let grossProfitChart, top5ProductsChart, successfulPromoChart, ineffectivePromosChart;
-        let unsoldTable;
+        let unsoldProductsChart;
 
         // Helper to format currency
         const idrFormatter = new Intl.NumberFormat('id-ID', {
@@ -176,12 +173,11 @@
             loadOverviewStats(params);
             loadGrossProfitTrend(params);
             loadTop5ProductsChart(params);
+            loadProfitTrendByCategory(params);
             
-            // UPDATED: Changed function call
             loadSuccessfulPromoChart(params); 
-            
             loadIneffectivePromosChart(params);
-            loadUnsoldProductsTable(params);
+            loadUnsoldProductsChart(params);
         }
 
         /**
@@ -306,6 +302,97 @@
             }
         }
 
+        async function loadProfitTrendByCategory(params) {
+            try {
+                const response = await fetch('{{ route('sales.getProfitTrendByCategory') }}?' + params);
+                const json = await response.json();
+                if (!json.success) return;
+
+                // Data is "flat": {year, month, category, total_gross_profit}
+                const { labels, datasets } = pivotDataForChart(json.data);
+
+                const ctx = document.getElementById('profitByCategoryChart').getContext('2d');
+                if (profitByCategoryChart) {
+                    profitByCategoryChart.destroy();
+                }
+                profitByCategoryChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top', // Show legend (categories)
+                            },
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    // Format Y-axis as currency
+                                    callback: function(value) {
+                                        return new Intl.NumberFormat('id-ID', { 
+                                            style: 'currency', 
+                                            currency: 'IDR', 
+                                            notation: 'compact' // e.g., "Rp 10 Jt"
+                                        }).format(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading profit by category trend:', error);
+            }
+        }
+
+        /**
+         * (HELPER) Pivots flat SQL data into a Chart.js multi-line dataset.
+         */
+        function pivotDataForChart(data) {
+            const labelsSet = new Set();
+            const categories = new Set();
+            data.forEach(row => {
+                labelsSet.add(`${row.month_name} ${row.year}`);
+                categories.add(row.category);
+            });
+
+            const sortedLabels = Array.from(labelsSet); // You should sort this by date properly if needed*
+            const labelIndexMap = new Map(sortedLabels.map((label, index) => [label, index]));
+            
+            const datasetsMap = new Map();
+            const colors = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(239, 68, 68)', 'rgb(249, 115, 22)', 'rgb(139, 92, 246)'];
+            let colorIndex = 0;
+
+            categories.forEach(category => {
+                datasetsMap.set(category, {
+                    label: category,
+                    data: Array(sortedLabels.length).fill(0), // Init with zeros
+                    borderColor: colors[colorIndex % colors.length],
+                    tension: 0.1,
+                    fill: false
+                });
+                colorIndex++;
+            });
+
+            data.forEach(row => {
+                const label = `${row.month_name} ${row.year}`;
+                const index = labelIndexMap.get(label);
+                if (index !== undefined) {
+                    datasetsMap.get(row.category).data[index] = row.total_gross_profit;
+                }
+            });
+
+            return {
+                labels: sortedLabels,
+                datasets: Array.from(datasetsMap.values())
+            };
+        }
+
         /**
          * UPDATED: Load the Top 5 Successful Promotions bar chart
          */
@@ -381,67 +468,106 @@
             }
         }
 
-        /**
-         * Load the DataTables for unsold promotional products
-         */
-        function loadUnsoldProductsTable(params) {
-            // Destroy the old table if it exists
-            if ($.fn.DataTable.isDataTable('#unsoldProductsTable')) {
-                $('#unsoldProductsTable').DataTable().destroy();
-            }
+        async function loadUnsoldProductsChart(params) {
+            try {
+                const response = await fetch('{{ route('sales.getUnsoldProductsByRegion') }}?' + params);
+                const json = await response.json();
+                if (!json.success) return;
 
-            // Re-initialize the DataTable
-            unsoldTable = $('#unsoldProductsTable').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: '{{ route('sales.getUnsoldPromotionsList') }}?' + params.toString(),
-                columns: [{
-                        data: 'product_description',
-                        name: 'p.product_description'
-                    },
-                    {
-                        data: 'store_name',
-                        name: 's.store_name'
-                    },
-                    {
-                        data: 'promotion_name',
-                        name: 'dp.promotion_name'
-                    },
-                    {
-                        data: 'start_date',
-                        name: 'd_start.full_date'
-                    },
-                    {
-                        data: 'end_date',
-                        name: 'd_end.full_date'
-                    }
-                ],
-                // Apply Tailwind styling
-                "dom": '<"flex justify-between"lf><"clear">rt<"flex justify-between"ip>',
-                "pagingType": "simple_numbers",
-                "language": {
-                    "search": "_INPUT_",
-                    "searchPlaceholder": "Search records...",
-                    "lengthMenu": "_MENU_ items per page",
-                    "paginate": {
-                        "next": "Next &rarr;",
-                        "previous": "&larr; Previous"
-                    }
+                // Data is flat and PRE-SORTED by total_failures: 
+                // {product_description, region, unsold_count_by_region, total_failures}
+                // The new pivot function will respect this order.
+                const { labels, datasets } = pivotDataForStackedBar(json.data);
+
+                const ctx = document.getElementById('unsoldProductsChart').getContext('2d');
+                if (unsoldProductsChart) {
+                    unsoldProductsChart.destroy();
                 }
-            });
+                unsoldProductsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                        },
+                        scales: {
+                            x: {
+                                stacked: true, // Stack horizontally
+                            },
+                            y: {
+                                stacked: true, // Stack vertically
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Count of Unsold Items'
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading unsold products by region chart:', error);
+            }
         }
 
-
-        // Initial Load on document ready
-        $(document).ready(function() {
-            // Load filters first, then load all data
-            loadFilters().then(() => {
-                loadAllDashboardData();
+        /**
+         * Pivots flat SQL data for a Stacked Bar Chart.
+         */
+        function pivotDataForStackedBar(data) {
+            const regionSet = new Set();
+            const productFailuresMap = new Map(); // Map<product_name, total_failures>
+            
+            // Pass 1: Discover all regions and store the total failure count for each product
+            data.forEach(row => {
+                regionSet.add(row.region);
+                // Store the total_failures for each product.
+                // This will be the same value for all rows of the same product.
+                if (!productFailuresMap.has(row.product_description)) {
+                    productFailuresMap.set(row.product_description, row.total_failures);
+                }
             });
 
-            // Add event listener for the filter button
-            $('#apply-filters').on('click', loadAllDashboardData);
-        });
+            // Sort the products explicitly by their failure count (value)
+            const sortedLabels = Array.from(productFailuresMap.entries())
+                .sort((a, b) => b[1] - a[1]) // Sort by failures (index 1) descending
+                .map(entry => entry[0]);     // Get just the product name (index 0)
+
+            const labelIndexMap = new Map(sortedLabels.map((label, index) => [label, index]));
+            const datasetsMap = new Map();
+            const sortedRegions = Array.from(regionSet);
+            const colors = ['rgb(239, 68, 68)', 'rgb(249, 115, 22)', 'rgb(245, 158, 11)', 'rgb(132, 204, 22)'];
+            let colorIndex = 0;
+
+            // Initialize a dataset for each region
+            sortedRegions.forEach(region => {
+                datasetsMap.set(region, {
+                    label: region,
+                    data: Array(sortedLabels.length).fill(0), // Init with zeros
+                    backgroundColor: colors[colorIndex % colors.length],
+                });
+                colorIndex++;
+            });
+
+            // Populate the data into the correctly sorted slots
+            data.forEach(row => {
+                const index = labelIndexMap.get(row.product_description); // Get index from sorted map
+                if (index !== undefined) {
+                    datasetsMap.get(row.region).data[index] = row.unsold_count_by_region;
+                }
+            });
+
+            return {
+                labels: sortedLabels, // This array is now guaranteed to be sorted
+                datasets: Array.from(datasetsMap.values())
+            };
+        }
     </script>
 </body>
 

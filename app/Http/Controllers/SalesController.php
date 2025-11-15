@@ -135,6 +135,50 @@ class SalesController extends Controller
         ]);
     }
 
+    /**
+     * Get monthly gross profit trend, broken down by product category.
+     * This is a 2-Dimension query (Fact vs Time vs Product).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getProfitTrendByCategory(Request $request)
+    {
+        $query = DB::table('fact_sales')
+            ->join('dim_date', 'fact_sales.date_id', '=', 'dim_date.date_id')
+            ->join('dim_product', 'fact_sales.product_id', '=', 'dim_product.product_id')
+            ->join('dim_store', 'fact_sales.store_id', '=', 'dim_store.store_id')
+            ->select(
+                'dim_date.year',
+                'dim_date.month_number',
+                'dim_date.month_name',
+                'dim_product.category', 
+                DB::raw('SUM(fact_sales.gross_profit) as total_gross_profit')
+            )
+            // Group by both dimensions
+            ->groupBy('dim_date.year', 'dim_date.month_number', 'dim_date.month_name', 'dim_product.category')
+            ->orderBy('dim_date.year', 'asc')
+            ->orderBy('dim_date.month_number', 'asc');
+
+        // Apply filters
+        if ($request->has('region') && !empty($request->region)) {
+            $query->where('dim_store.region', $request->region);
+        }
+        
+        // We ignore category filter here, as we are grouping by it
+        // If you wanted to filter *which* categories appear, you could add:
+        // if ($request->has('category') && !empty($request->category)) {
+        //     $query->where('dim_product.category', $request->category);
+        // }
+
+        $data = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+    }
+
     // Overview
     public function getSalesOverview(Request $request)
     {
@@ -166,46 +210,6 @@ class SalesController extends Controller
         ]);
     }
 
-    public function getUnsoldPromotionsList(Request $request)
-    {
-        // Base query for unsold items
-        $query = DB::table('fact_promotion_coverage AS fpc')
-            ->join('dim_promotion AS dp', 'fpc.promotion_id', '=', 'dp.promotion_id')
-            ->join('dim_product AS p', 'fpc.product_id', '=', 'p.product_id')
-            ->join('dim_store AS s', 'fpc.store_id', '=', 's.store_id')
-            ->leftJoin('fact_sales AS fs', function ($join) {
-                $join->on('fs.product_id', '=', 'fpc.product_id')
-                     ->on('fs.store_id', '=', 'fpc.store_id')
-                     // This is the key: only look for sales WITHIN the promotion window
-                     ->whereRaw('fs.date_id BETWEEN dp.start_date AND dp.end_date');
-            })
-            ->whereNull('fs.transaction_id') // The "factless" logic: no sale was found
-            ->select(
-                'p.product_description', 
-                's.store_name', 
-                'dp.promotion_name',
-                // Join to dim_date to get human-readable dates
-                'd_start.full_date AS start_date',
-                'd_end.full_date AS end_date'
-            )
-            ->join('dim_date AS d_start', 'dp.start_date', '=', 'd_start.date_id')
-            ->join('dim_date AS d_end', 'dp.end_date', '=', 'd_end.date_id')
-            ->distinct();
-
-        // Apply filters
-        if ($request->has('region') && !empty($request->region)) {
-            $query->where('s.region', $request->region);
-        }
-        if ($request->has('category') && !empty($request->category)) {
-            $query->where('p.category', $request->category);
-        }
-        if ($request->has('promotion_id') && !empty($request->promotion_id)) {
-            $query->where('fpc.promotion_id', $request->promotion_id);
-        }
-
-        // Return as Yajra DataTable
-        return DataTables::of($query)->make(true);
-    }
 
     private function getUnsoldBaseQuery()
     {
@@ -288,6 +292,70 @@ class SalesController extends Controller
         if ($request->has('category') && !empty($request->category)) {
             $query->where('p.category', $request->category);
         }
+
+        $data = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ]);
+    }
+
+    /**
+     * Get Top 10 unsold promotional products, stacked by store region.
+     * This is a 2-Dimension query (Factless vs Product vs Store).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUnsoldProductsByRegion(Request $request)
+    {
+       // 1. Get the base query of all unsold items
+        $unsoldSubquery = $this->getUnsoldBaseQuery();
+
+        // 2. Find the Top 10 most-failing product IDs overall, considering filters
+        $top10ProductIdsQuery = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold"))
+            ->mergeBindings($unsoldSubquery)
+            ->join('dim_product AS p', 'unsold.product_id', '=', 'p.product_id')
+            ->join('dim_store AS s', 'unsold.store_id', '=', 's.store_id')
+            ->select('unsold.product_id', DB::raw('COUNT(*) as total_failures'));
+            
+        // Apply filters to the subquery
+        if ($request->has('region') && !empty($request->region)) {
+            $top10ProductIdsQuery->where('s.region', $request->region);
+        }
+        if ($request->has('category') && !empty($request->category)) {
+            $top10ProductIdsQuery->where('p.category', $request->category);
+        }
+
+        $top10ProductIds = $top10ProductIdsQuery
+            ->groupBy('unsold.product_id') 
+            ->orderBy('total_failures', 'desc')
+            ->limit(10)
+            ->pluck('product_id');
+
+        $productTotalFailures = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold_totals"))
+            ->mergeBindings($unsoldSubquery)
+            ->select('product_id', DB::raw('COUNT(*) as total_failures'))
+            ->whereIn('product_id', $top10ProductIds)
+            ->groupBy('product_id');
+
+        $query = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold_final"))
+            ->mergeBindings($unsoldSubquery)
+            ->join('dim_product AS p', 'unsold_final.product_id', '=', 'p.product_id')
+            ->join('dim_store AS s', 'unsold_final.store_id', '=', 's.store_id')
+            ->joinSub($productTotalFailures, 'totals', function ($join) {
+                $join->on('unsold_final.product_id', '=', 'totals.product_id');
+            })
+            ->whereIn('unsold_final.product_id', $top10ProductIds) // Filter for Top 10
+            ->select(
+                'p.product_description',
+                's.region',
+                'totals.total_failures', 
+                DB::raw('COUNT(*) as unsold_count_by_region')
+            )
+            ->groupBy('p.product_description', 's.region', 'totals.total_failures')
+            ->orderBy('totals.total_failures', 'desc');
 
         $data = $query->get();
 
