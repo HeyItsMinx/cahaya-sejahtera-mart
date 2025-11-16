@@ -11,20 +11,14 @@ class FactPromotionCoverage extends Model
     public $incrementing = false;
 
     // Composite primary key
-    protected $primaryKey = ['date_id', 'product_id', 'store_id', 'promotion_id'];
+    protected $primaryKey = ['product_id', 'store_id', 'promotion_id'];
 
     protected $fillable = [
-        'date_id',
         'product_id',
         'store_id',
         'promotion_id'
     ];
 
-    // Relationships
-    public function date()
-    {
-        return $this->belongsTo(DimDate::class, 'date_id', 'date_id');
-    }
 
     public function product()
     {
@@ -44,7 +38,6 @@ class FactPromotionCoverage extends Model
     public function sales()
     {
         return $this->hasOne(FactSales::class)
-            ->where('date_id', $this->date_id)
             ->where('product_id', $this->product_id)
             ->where('store_id', $this->store_id)
             ->where('promotion_id', $this->promotion_id);
