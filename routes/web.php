@@ -21,4 +21,8 @@ Route::prefix('/sales')->group(function () {
 
 Route::prefix('/procurement')->group(function () {
     Route::get('/', [ProcurementController::class, 'index']);
+    Route::get('/datatable', [ProcurementController::class, 'datatable']);
+    Route::post('/update-status', [ProcurementController::class, 'updateStatus']);
+    Route::get('/chart-lead-time', [ProcurementController::class, 'chartPage']);
+    Route::get('/chart-lead-time/data', [ProcurementController::class, 'chartLeadTimeByVendor']);
 });
