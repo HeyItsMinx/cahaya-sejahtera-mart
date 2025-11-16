@@ -220,6 +220,6 @@ class ProcurementController extends Controller
      */
     public function chartPage()
     {
-        return view('procurement.chart-lead-time');
+        return view('procurement.chart');
     }
 }
