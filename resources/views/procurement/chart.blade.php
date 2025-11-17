@@ -116,6 +116,100 @@
         .info-box strong {
             color: #667eea;
         }
+        .vendor-filters {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 2px solid #667eea;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+        }
+        .vendor-filters h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .vendor-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .vendor-checkbox {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .vendor-checkbox input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+            transition: all 0.3s ease;
+        }
+        .vendor-checkbox input:hover {
+            transform: scale(1.1);
+        }
+        .vendor-checkbox input:checked {
+            accent-color: #764ba2;
+        }
+        .vendor-checkbox label {
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        .vendor-checkbox input:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            padding: 8px 12px;
+        }
+        .vendor-checkbox:hover label {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .filter-buttons button {
+            padding: 10px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-buttons button:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .filter-buttons button:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -134,6 +228,15 @@
             <button onclick="loadChart()">Muat Grafik</button>
         </div>
 
+        <div class="vendor-filters" id="vendorFilters" style="display: none;">
+            <h3>Filter Vendor:</h3>
+            <div class="filter-buttons">
+                <button onclick="selectAllVendors()">Pilih Semua</button>
+                <button onclick="clearAllVendors()">Bersihkan Semua</button>
+            </div>
+            <div class="vendor-list" id="vendorList"></div>
+        </div>
+
         <div class="error" id="errorBox"></div>
         <div class="loading" id="loading">Memuat data grafik</div>
         <div class="chart-wrapper" id="chartWrapper">
@@ -147,6 +250,7 @@
 
     <script>
     let chartInstance = null;
+    let chartData = null;
     const colors = [
         '#667eea', '#764ba2', '#f093fb', '#4facfe',
         '#43e97b', '#fa709a', '#fee140', '#30b0fe',
@@ -163,65 +267,79 @@
         document.getElementById('errorBox').classList.remove('show');
     }
 
-    function loadChart() {
-        const months = document.getElementById('monthSelect').value;
-        const loading = document.getElementById('loading');
-        const wrapper = document.getElementById('chartWrapper');
+    function buildVendorFilters(vendors) {
+        const filterContainer = document.getElementById('vendorFilters');
+        const vendorList = document.getElementById('vendorList');
+        vendorList.innerHTML = '';
 
-        hideError();
-        loading.style.display = 'block';
-        wrapper.classList.remove('show');
+        vendors.forEach(vendor => {
+            const checkbox = document.createElement('div');
+            checkbox.className = 'vendor-checkbox';
+            checkbox.innerHTML = `
+                <input type="checkbox" id="vendor-${vendor}" value="${vendor}" checked onchange="updateChartDisplay()">
+                <label for="vendor-${vendor}">${vendor}</label>
+            `;
+            vendorList.appendChild(checkbox);
+        });
 
-        fetch(`/procurement/chart-lead-time/data?months=${months}`)
-            .then(res => res.json())
-            .then(result => {
-                loading.style.display = 'none';
-                if (result.months && Object.keys(result.vendors).length > 0) {
-                    renderChart(result);
-                    wrapper.classList.add('show');
-                } else {
-                    showError('Tidak ada data grafik untuk periode ini');
-                }
-            })
-            .catch(err => {
-                loading.style.display = 'none';
-                showError('Kesalahan: ' + err.message);
-                console.error(err);
-            });
+        filterContainer.style.display = 'block';
     }
 
-    function renderChart(data) {
-        const ctx = document.getElementById('leadTimeChart').getContext('2d');
+    function getSelectedVendors() {
+        const checkboxes = document.querySelectorAll('#vendorList input[type="checkbox"]');
+        return Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+    }
+
+    function selectAllVendors() {
+        document.querySelectorAll('#vendorList input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+        });
+        updateChartDisplay();
+    }
+
+    function clearAllVendors() {
+        document.querySelectorAll('#vendorList input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+        updateChartDisplay();
+    }
+
+    function updateChartDisplay() {
+        if (!chartData) return;
+        
+        const selectedVendors = getSelectedVendors();
         const datasets = [];
 
-        Object.entries(data.vendors || {}).forEach((entry, idx) => {
-            const vendorName = entry[0];
-            const values = entry[1];
-            const color = colors[idx % colors.length];
-
-            datasets.push({
-                label: vendorName,
-                data: values,
-                borderColor: color,
-                backgroundColor: color + '15',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: color,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                pointStyle: 'circle'
-            });
+        chartData.vendors.forEach((vendor, idx) => {
+            if (selectedVendors.includes(vendor.name)) {
+                const color = colors[idx % colors.length];
+                datasets.push({
+                    label: vendor.name,
+                    data: vendor.data,
+                    borderColor: color,
+                    backgroundColor: color + '15',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointStyle: 'circle'
+                });
+            }
         });
 
         if (chartInstance) chartInstance.destroy();
 
+        const ctx = document.getElementById('leadTimeChart').getContext('2d');
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.months,
+                labels: chartData.months,
                 datasets: datasets
             },
             options: {
@@ -236,17 +354,6 @@
                             usePointStyle: true,
                             padding: 15,
                             font: { size: 12, weight: 'bold' },
-                            generateLabels: (chart) => {
-                                const datasets = chart.data.datasets;
-                                return datasets.map((ds, i) => ({
-                                    text: ds.label,
-                                    fillStyle: ds.borderColor,
-                                    strokeStyle: ds.borderColor,
-                                    pointStyle: 'circle',
-                                    hidden: false,
-                                    index: i
-                                }));
-                            }
                         }
                     },
                     tooltip: {
@@ -299,6 +406,45 @@
                 }
             }
         });
+    }
+
+    function loadChart() {
+        const months = document.getElementById('monthSelect').value;
+        const loading = document.getElementById('loading');
+        const wrapper = document.getElementById('chartWrapper');
+
+        hideError();
+        loading.style.display = 'block';
+        wrapper.classList.remove('show');
+
+        fetch(`/procurement/chart-lead-time/data?months=${months}`)
+            .then(res => res.json())
+            .then(result => {
+                loading.style.display = 'none';
+                if (result.months && Object.keys(result.vendors).length > 0) {
+                    // Transform data format
+                    const vendorArray = Object.entries(result.vendors).map((entry, idx) => ({
+                        name: entry[0],
+                        data: entry[1]
+                    }));
+                    
+                    chartData = {
+                        months: result.months,
+                        vendors: vendorArray
+                    };
+
+                    buildVendorFilters(vendorArray.map(v => v.name));
+                    updateChartDisplay();
+                    wrapper.classList.add('show');
+                } else {
+                    showError('Tidak ada data grafik untuk periode ini');
+                }
+            })
+            .catch(err => {
+                loading.style.display = 'none';
+                showError('Kesalahan: ' + err.message);
+                console.error(err);
+            });
     }
 
     // Auto-load chart on page load
