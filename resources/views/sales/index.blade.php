@@ -1,141 +1,235 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+@extends('layouts.app')
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+@section('title')
+    <title>Sales & Promotion Dashboard</title>
+@endsection
 
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <title>Sales Dashboard - {{ config('app.name', 'Laravel') }}</title>
-
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.tailwindcss.min.css" rel="stylesheet">
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-
+@section('styles')
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    
     <style>
-        /* Simple dark mode toggle for demo (optional) */
-        /* .dark { background-color: #0a0a0a; color: #ededec; } */
-        /* You can manage this with JS or a proper Vite setup */
+        .stat-card {
+            transition: transform 0.2s;
+            height: 100%;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
     </style>
-</head>
+@endsection
 
-<body class="bg-[#FDFDFC] dark:bg-[#0a0a0a] text-[#1b1b18] dark:text-[#ededec] font-sans antialiased">
+@section('content')
+    <div class="container-fluid">
+        <!-- Breadcrumb -->
+        <div class="row">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-3">
+                        <li class="breadcrumb-item"><a href="{{ url('/') }}">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Sales & Promotion Dashboard</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
 
-    <div class="container mx-auto max-w-7xl p-4 lg:p-8">
-
-        <header class="mb-6 flex justify-between items-center">
-            <h1 class="text-3xl font-semibold">Sales & Promotion Dashboard</h1>
-            <a href="{{ url('/') }}" class="text-sm text-gray-500 hover:underline">Back to Menu</a>
-        </header>
-
-        <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label for="filter-region"
-                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">Region</label>
-                    <select id="filter-region" name="region"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option value="">All Regions</option>
-                    </select>
+        <!-- Filter Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Filters</h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="filter-region" class="form-label">Region</label>
+                                <select id="filter-region" name="region" class="form-select">
+                                    <option value="">All Regions</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filter-category" class="form-label">Category</label>
+                                <select id="filter-category" name="category" class="form-select">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filter-promotion" class="form-label">Promotion</label>
+                                <select id="filter-promotion" name="promotion" class="form-select">
+                                    <option value="">All Promotions</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button id="apply-filters" class="btn btn-primary w-100">
+                                    Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label for="filter-category"
-                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-                    <select id="filter-category" name="category"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option value="">All Categories</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="filter-promotion"
-                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">Promotion</label>
-                    <select id="filter-promotion" name="promotion"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600">
-                        <option value="">All Promotions</option>
-                    </select>
-                </div>
-                <div class="self-end">
-                    <button id="apply-filters"
-                        class="w-full h-10 px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
-                        Apply Filters
-                    </button>
+            </div>
+        </div>
+
+        <!-- Sales Overview Stats -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">Sales Overview</h4>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Total Revenue</span>
+                        <h5 id="stat-total-revenue" class="mb-0">Loading...</h5>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <h2 class="text-2xl font-semibold mb-4">Sales Overview</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</h4>
-                <p id="stat-total-revenue" class="text-2xl font-bold">Loading...</p>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Total Gross Profit</span>
+                        <h5 id="stat-total-gross-profit" class="mb-0">Loading...</h5>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Gross Profit</h4>
-                <p id="stat-total-gross-profit" class="text-2xl font-bold">Loading...</p>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Total Transactions</span>
+                        <h5 id="stat-total-transactions" class="mb-0">Loading...</h5>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Transactions</h4>
-                <p id="stat-total-transactions" class="text-2xl font-bold">Loading...</p>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Items Sold</span>
+                        <h5 id="stat-total-quantity-sold" class="mb-0">Loading...</h5>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Items Sold</h4>
-                <p id="stat-total-quantity-sold" class="text-2xl font-bold">Loading...</p>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Total Cost</span>
+                        <h5 id="stat-total-cost" class="mb-0">Loading...</h5>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Cost</h4>
-                <p id="stat-total-cost" class="text-2xl font-bold">Loading...</p>
-            </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Avg. Profit</h4>
-                <p id="stat-avg-profit" class="text-2xl font-bold">Loading...</p>
-            </div>
-        </div>
-
-        <h2 class="text-2xl font-semibold mb-4">Sales Performance</h2>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Monthly Gross Profit Trend</h3>
-                <canvas id="grossProfitChart"></canvas>
-            </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Top 5 Products by Gross Profit</h3>
-                <canvas id="top5ProductsChart"></canvas>
-            </div>
-        </div>
-
-        <h2 class="text-2xl font-semibold mb-4">Multi-Dimensional Analysis</h2>
-        <div class="grid grid-cols-1 gap-6 mb-8">
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Monthly Gross Profit Trend by Product Category</h3>
-                <canvas id="profitByCategoryChart"></canvas>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <span class="d-block text-muted mb-1 small">Avg. Profit</span>
+                        <h5 id="stat-avg-profit" class="mb-0">Loading...</h5>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <h2 class="text-2xl font-semibold mb-4">Promotion Analysis</h2>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Top 5 Successful Promotions (by Qty Sold)</h3>
-                <canvas id="successfulPromoChart"></canvas>
-            </div>
-            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <h3 class="font-semibold mb-2">Top 5 Most Ineffective Promotions</h3>
-                <canvas id="ineffectivePromosChart"></canvas>
+        <!-- Sales Performance Charts -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">Sales Performance</h4>
             </div>
         </div>
-        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h3 class="font-semibold mb-4">Top 10 Unsold Promotional Products by Region</h3>
-            <canvas id="unsoldProductsChart"></canvas>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Monthly Gross Profit Trend</h5>
+                        <div class="chart-container">
+                            <canvas id="grossProfitChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Top 5 Products by Gross Profit</h5>
+                        <div class="chart-container">
+                            <canvas id="top5ProductsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Dimensional Analysis -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">Multi-Dimensional Analysis</h4>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Monthly Gross Profit Trend by Product Category</h5>
+                        <div class="chart-container" style="height: 400px;">
+                            <canvas id="profitByCategoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promotion Analysis -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">Promotion Analysis</h4>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Top 5 Successful Promotions (by Qty Sold)</h5>
+                        <div class="chart-container">
+                            <canvas id="successfulPromoChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Top 5 Most Ineffective Promotions</h5>
+                        <div class="chart-container">
+                            <canvas id="ineffectivePromosChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Top 10 Unsold Promotional Products by Region</h5>
+                        <div class="chart-container" style="height: 400px;">
+                            <canvas id="unsoldProductsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
-        // UPDATED: Renamed variable for clarity
+        // Chart variables
         let profitByCategoryChart;
         let grossProfitChart, top5ProductsChart, successfulPromoChart, ineffectivePromosChart;
         let unsoldProductsChart;
@@ -256,8 +350,20 @@
                                 label: 'Total Gross Profit',
                                 data: values,
                                 borderColor: 'rgb(59, 130, 246)',
-                                tension: 0.1
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
                             }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            }
                         }
                     });
                 }
@@ -293,7 +399,14 @@
                             }]
                         },
                         options: {
-                            indexAxis: 'y'
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
                         }
                     });
                 }
@@ -308,7 +421,6 @@
                 const json = await response.json();
                 if (!json.success) return;
 
-                // Data is "flat": {year, month, category, total_gross_profit}
                 const { labels, datasets } = pivotDataForChart(json.data);
 
                 const ctx = document.getElementById('profitByCategoryChart').getContext('2d');
@@ -323,20 +435,20 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'top', // Show legend (categories)
+                                position: 'top',
                             },
                         },
                         scales: {
                             y: {
                                 ticks: {
-                                    // Format Y-axis as currency
                                     callback: function(value) {
                                         return new Intl.NumberFormat('id-ID', { 
                                             style: 'currency', 
                                             currency: 'IDR', 
-                                            notation: 'compact' // e.g., "Rp 10 Jt"
+                                            notation: 'compact'
                                         }).format(value);
                                     }
                                 }
@@ -361,7 +473,7 @@
                 categories.add(row.category);
             });
 
-            const sortedLabels = Array.from(labelsSet); // You should sort this by date properly if needed*
+            const sortedLabels = Array.from(labelsSet);
             const labelIndexMap = new Map(sortedLabels.map((label, index) => [label, index]));
             
             const datasetsMap = new Map();
@@ -371,9 +483,9 @@
             categories.forEach(category => {
                 datasetsMap.set(category, {
                     label: category,
-                    data: Array(sortedLabels.length).fill(0), // Init with zeros
+                    data: Array(sortedLabels.length).fill(0),
                     borderColor: colors[colorIndex % colors.length],
-                    tension: 0.1,
+                    tension: 0.4,
                     fill: false
                 });
                 colorIndex++;
@@ -394,11 +506,10 @@
         }
 
         /**
-         * UPDATED: Load the Top 5 Successful Promotions bar chart
+         * Load the Top 5 Successful Promotions bar chart
          */
         async function loadSuccessfulPromoChart(params) {
             try {
-                // Fetch from the new route
                 const response = await fetch('{{ route('sales.getTop5SuccessfulPromotions') }}?' + params);
                 const json = await response.json();
                 if (json.success) {
@@ -406,24 +517,29 @@
                     const labels = data.map(d => d.promotion_name);
                     const values = data.map(d => d.total_quantity_sold);
 
-                    // Use the new canvas ID
                     const ctx = document.getElementById('successfulPromoChart').getContext('2d');
                     if (successfulPromoChart) {
                         successfulPromoChart.destroy();
                     }
                     successfulPromoChart = new Chart(ctx, {
-                        type: 'bar', // Changed from 'line' to 'bar'
+                        type: 'bar',
                         data: {
                             labels: labels,
                             datasets: [{
                                 label: 'Total Quantity Sold',
                                 data: values,
-                                backgroundColor: 'rgb(34, 197, 94)', // Green color for success
-                                tension: 0.1
+                                backgroundColor: 'rgb(34, 197, 94)',
                             }]
                         },
                         options: {
-                            indexAxis: 'y' // Horizontal bar chart
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
                         }
                     });
                 }
@@ -455,11 +571,18 @@
                             datasets: [{
                                 label: 'Failed Promo Item Count',
                                 data: values,
-                                backgroundColor: 'rgb(239, 68, 68)', // Red color for failure
+                                backgroundColor: 'rgb(239, 68, 68)',
                             }]
                         },
                         options: {
-                            indexAxis: 'y'
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
                         }
                     });
                 }
@@ -474,9 +597,6 @@
                 const json = await response.json();
                 if (!json.success) return;
 
-                // Data is flat and PRE-SORTED by total_failures: 
-                // {product_description, region, unsold_count_by_region, total_failures}
-                // The new pivot function will respect this order.
                 const { labels, datasets } = pivotDataForStackedBar(json.data);
 
                 const ctx = document.getElementById('unsoldProductsChart').getContext('2d');
@@ -491,6 +611,7 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
                             legend: {
                                 position: 'top',
@@ -498,10 +619,10 @@
                         },
                         scales: {
                             x: {
-                                stacked: true, // Stack horizontally
+                                stacked: true,
                             },
                             y: {
-                                stacked: true, // Stack vertically
+                                stacked: true,
                                 beginAtZero: true,
                                 title: {
                                     display: true,
@@ -522,22 +643,18 @@
          */
         function pivotDataForStackedBar(data) {
             const regionSet = new Set();
-            const productFailuresMap = new Map(); // Map<product_name, total_failures>
+            const productFailuresMap = new Map();
             
-            // Pass 1: Discover all regions and store the total failure count for each product
             data.forEach(row => {
                 regionSet.add(row.region);
-                // Store the total_failures for each product.
-                // This will be the same value for all rows of the same product.
                 if (!productFailuresMap.has(row.product_description)) {
                     productFailuresMap.set(row.product_description, row.total_failures);
                 }
             });
 
-            // Sort the products explicitly by their failure count (value)
             const sortedLabels = Array.from(productFailuresMap.entries())
-                .sort((a, b) => b[1] - a[1]) // Sort by failures (index 1) descending
-                .map(entry => entry[0]);     // Get just the product name (index 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(entry => entry[0]);
 
             const labelIndexMap = new Map(sortedLabels.map((label, index) => [label, index]));
             const datasetsMap = new Map();
@@ -545,30 +662,40 @@
             const colors = ['rgb(239, 68, 68)', 'rgb(249, 115, 22)', 'rgb(245, 158, 11)', 'rgb(132, 204, 22)'];
             let colorIndex = 0;
 
-            // Initialize a dataset for each region
             sortedRegions.forEach(region => {
                 datasetsMap.set(region, {
                     label: region,
-                    data: Array(sortedLabels.length).fill(0), // Init with zeros
+                    data: Array(sortedLabels.length).fill(0),
                     backgroundColor: colors[colorIndex % colors.length],
                 });
                 colorIndex++;
             });
 
-            // Populate the data into the correctly sorted slots
             data.forEach(row => {
-                const index = labelIndexMap.get(row.product_description); // Get index from sorted map
+                const index = labelIndexMap.get(row.product_description);
                 if (index !== undefined) {
                     datasetsMap.get(row.region).data[index] = row.unsold_count_by_region;
                 }
             });
 
             return {
-                labels: sortedLabels, // This array is now guaranteed to be sorted
+                labels: sortedLabels,
                 datasets: Array.from(datasetsMap.values())
             };
         }
-    </script>
-</body>
 
-</html>
+        // Document ready
+        $(document).ready(function() {
+            // Load filters on page load
+            loadFilters();
+            
+            // Load all dashboard data
+            loadAllDashboardData();
+
+            // Apply filters button
+            $('#apply-filters').on('click', function() {
+                loadAllDashboardData();
+            });
+        });
+    </script>
+@endsection
