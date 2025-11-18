@@ -8,6 +8,10 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/animate.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/prism.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/flatpickr/flatpickr.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/select2.css') }}">
     
     <style>
         .stat-card {
@@ -39,7 +43,7 @@
             </div>
         </div>
 
-        <!-- Filter Section -->
+       <!-- Filter Section -->
         <div class="row">
             <div class="col-12">
                 <div class="card mb-4">
@@ -48,22 +52,25 @@
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label for="filter-region" class="form-label">Region</label>
-                                <select id="filter-region" name="region" class="form-select">
+                                <select id="filter-region" name="region" class="form-select select2">
                                     <option value="">All Regions</option>
                                 </select>
                             </div>
+
                             <div class="col-md-3">
                                 <label for="filter-category" class="form-label">Category</label>
-                                <select id="filter-category" name="category" class="form-select">
+                                <select id="filter-category" name="category" class="form-select select2">
                                     <option value="">All Categories</option>
                                 </select>
                             </div>
+
                             <div class="col-md-3">
                                 <label for="filter-promotion" class="form-label">Promotion</label>
-                                <select id="filter-promotion" name="promotion" class="form-select">
+                                <select id="filter-promotion" name="promotion" class="form-select select2">
                                     <option value="">All Promotions</option>
                                 </select>
                             </div>
+
                             <div class="col-md-3 d-flex align-items-end">
                                 <button id="apply-filters" class="btn btn-primary w-100">
                                     Apply Filters
@@ -74,6 +81,7 @@
                 </div>
             </div>
         </div>
+
 
         <!-- Sales Overview Stats -->
         <div class="row">
@@ -225,7 +233,13 @@
 @endsection
 
 @section('scripts')
-    <!-- Chart.js -->
+    <script src="{{ asset('js\axios.min.js') }}"></script>
+    <script src="{{ asset('js\vue.js') }}"></script>
+    <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
+    <script src="{{ asset('assets/js/flat-pickr/custom-flatpickr.js') }}"></script>
+    <script src="{{ asset('assets/js/select2/select2.full.min.js') }}"></script>
+    <script src="{{ asset('js/fileinput/fileinput.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/gh/kartik-v/bootstrap-fileinput@5.5.0/themes/fa5/theme.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
@@ -688,6 +702,11 @@
         $(document).ready(function() {
             // Load filters on page load
             loadFilters();
+
+            $('.select2').select2({
+                width: '100%',
+                allowClear: true
+            });
             
             // Load all dashboard data
             loadAllDashboardData();
