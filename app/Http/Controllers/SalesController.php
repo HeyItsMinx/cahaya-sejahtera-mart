@@ -164,12 +164,6 @@ class SalesController extends Controller
         if ($request->has('region') && !empty($request->region)) {
             $query->where('dim_store.region', $request->region);
         }
-        
-        // We ignore category filter here, as we are grouping by it
-        // If you wanted to filter *which* categories appear, you could add:
-        // if ($request->has('category') && !empty($request->category)) {
-        //     $query->where('dim_product.category', $request->category);
-        // }
 
         $data = $query->get();
 
