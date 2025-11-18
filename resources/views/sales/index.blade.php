@@ -463,7 +463,7 @@
         }
 
         /**
-         * (HELPER) Pivots flat SQL data into a Chart.js multi-line dataset.
+         * Pivot Chart
          */
         function pivotDataForChart(data) {
             const labelsSet = new Set();
