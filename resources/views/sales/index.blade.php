@@ -170,11 +170,6 @@
         </div>
 
         <!-- Multi-Dimensional Analysis -->
-        <div class="row">
-            <div class="col-12">
-                <h4 class="mb-3">Multi-Dimensional Analysis</h4>
-            </div>
-        </div>
         <div class="row g-3 mb-4">
             <div class="col-12">
                 <div class="card">
@@ -640,7 +635,7 @@
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: 'Count of Unsold Items'
+                                    text: 'Count of Failed Promotions'
                                 }
                             }
                         }
