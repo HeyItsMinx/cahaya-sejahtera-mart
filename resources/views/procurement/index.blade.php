@@ -1,80 +1,125 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rata-rata Lead Time Bulanan per Vendor</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+@extends('layouts.app')
+
+@section('title')
+    <title>Procurement Dashboard - Lead Time Chart</title>
+@endsection
+
+@section('styles')
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .main-content {
+            margin-top: 120px;
+            padding-left: 200px;
+            padding-right: 200px;
+            min-height: calc(100vh - 120px);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background-color: #f5f7fa;
         }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 40px;
+
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
         }
-        h1 {
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 1rem 1.5rem;
+        }
+
+        .card-title {
+            margin-bottom: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
             color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
         }
-        .subtitle {
+
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0.5rem 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .breadcrumb-item {
+            font-size: 0.875rem;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
             color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
         }
+
         .controls {
             display: flex;
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 0;
             align-items: center;
+            flex-wrap: wrap;
         }
+
         .controls label {
             font-weight: 600;
             color: #333;
+            margin: 0;
+            font-size: 0.95rem;
         }
+
         .controls select {
             padding: 10px 15px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
             cursor: pointer;
-            transition: border-color 0.3s;
+            background-color: white;
+            transition: border-color 0.2s;
         }
-        .controls select:hover {
+
+        .controls select:focus {
             border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
+
         .controls button {
             padding: 10px 25px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 0.5rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
+            font-size: 0.95rem;
         }
+
         .controls button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(5, 150, 105, 0.4);
         }
+
         .chart-wrapper {
             position: relative;
             height: 600px;
-            margin: 30px 0;
+            margin: 0;
             display: none;
+            padding: 20px 0;
         }
+
         .chart-wrapper.show {
             display: block;
         }
+
         .loading {
             text-align: center;
             padding: 60px 20px;
@@ -82,64 +127,68 @@
             font-size: 16px;
             font-weight: 600;
         }
+
         .loading::after {
             content: '...';
             animation: dots 1.5s steps(4, end) infinite;
         }
+
         @keyframes dots {
             0%, 20% { content: '.'; }
             40% { content: '..'; }
             60%, 100% { content: '...'; }
         }
+
         .error {
-            background: #fee;
-            border: 2px solid #f88;
-            color: #c33;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
             padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            border-radius: 0.5rem;
+            margin: 0;
             display: none;
         }
+
         .error.show {
             display: block;
         }
+
         .info-box {
-            background: #f0f7ff;
-            border-left: 4px solid #667eea;
+            background: #e7f3ff;
+            border-left: 4px solid #0d6efd;
             padding: 20px;
-            border-radius: 6px;
-            margin-top: 30px;
-            color: #333;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        .info-box strong {
-            color: #667eea;
-        }
-        .vendor-filters {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border: 2px solid #667eea;
-            padding: 25px;
-            border-radius: 12px;
-            margin: 20px 0;
-            max-height: 250px;
-            overflow-y: auto;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
-        }
-        .vendor-filters h3 {
+            border-radius: 0.5rem;
             margin-top: 0;
             color: #333;
-            font-size: 15px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 0.95rem;
+            line-height: 1.6;
         }
+
+        .info-box strong {
+            color: #0d6efd;
+        }
+
+        .vendor-filters {
+            background: white;
+            border: none;
+            padding: 0;
+            border-radius: 0;
+            margin: 0;
+            max-height: none;
+            overflow-y: visible;
+            box-shadow: none;
+        }
+
+        .vendor-filters h3 {
+            display: none;
+        }
+
         .vendor-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 12px;
         }
+
         .vendor-checkbox {
             position: relative;
             display: flex;
@@ -148,106 +197,176 @@
             cursor: pointer;
             user-select: none;
         }
+
         .vendor-checkbox input {
             cursor: pointer;
             width: 18px;
             height: 18px;
-            accent-color: #667eea;
+            accent-color: #10b981;
             transition: all 0.3s ease;
         }
+
         .vendor-checkbox input:hover {
             transform: scale(1.1);
         }
+
         .vendor-checkbox input:checked {
-            accent-color: #764ba2;
+            accent-color: #059669;
         }
+
         .vendor-checkbox label {
             cursor: pointer;
-            font-size: 13px;
+            font-size: 0.9rem;
             color: #333;
             font-weight: 500;
             padding: 6px 10px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.5);
+            border-radius: 0.4rem;
+            background: rgba(16, 185, 129, 0.05);
             transition: all 0.3s ease;
             flex: 1;
+            margin: 0;
         }
+
         .vendor-checkbox input:checked + label {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             font-weight: 600;
             padding: 8px 12px;
         }
+
         .vendor-checkbox:hover label {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(16, 185, 129, 0.1);
         }
+
         .filter-buttons {
             display: flex;
             gap: 12px;
             margin-bottom: 18px;
             flex-wrap: wrap;
         }
+
         .filter-buttons button {
             padding: 10px 18px;
-            font-size: 12px;
+            font-size: 0.85rem;
             font-weight: 600;
             background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            border-radius: 8px;
+            border: 2px solid #10b981;
+            color: #10b981;
+            border-radius: 0.5rem;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .filter-buttons button:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border-color: transparent;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
+
         .filter-buttons button:active {
             transform: translateY(0);
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 Rata-rata Lead Time Bulanan per Vendor</h1>
-        <p class="subtitle">Durasi rata-rata (hari) dari PO dibuat sampai barang diterima, per vendor, per bulan</p>
+@endsection
 
-        <div class="controls">
-            <label for="monthSelect">Tampilkan:</label>
-            <select id="monthSelect">
-                <option value="3">3 bulan terakhir</option>
-                <option value="6">6 bulan terakhir</option>
-                <option value="12" selected>12 bulan terakhir</option>
-                <option value="24">24 bulan terakhir</option>
-            </select>
-            <button onclick="loadChart()">Muat Grafik</button>
-        </div>
-
-        <div class="vendor-filters" id="vendorFilters" style="display: none;">
-            <h3>Filter Vendor:</h3>
-            <div class="filter-buttons">
-                <button onclick="selectAllVendors()">Pilih Semua</button>
-                <button onclick="clearAllVendors()">Bersihkan Semua</button>
+@section('content')
+    <div class="main-content">
+        <!-- Breadcrumb -->
+        <div class="row">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url('/') }}">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Procurement Dashboard</li>
+                    </ol>
+                </nav>
             </div>
-            <div class="vendor-list" id="vendorList"></div>
         </div>
 
-        <div class="error" id="errorBox"></div>
-        <div class="loading" id="loading">Memuat data grafik</div>
-        <div class="chart-wrapper" id="chartWrapper">
-            <canvas id="leadTimeChart"></canvas>
+        <!-- Page Title -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="page-title">📊 Rata-rata Lead Time Bulanan per Vendor</h1>
+                <p class="page-subtitle">Durasi rata-rata (hari) dari PO dibuat sampai barang diterima, per vendor, per bulan</p>
+            </div>
         </div>
 
-        <div class="info-box">
-            <strong>Keterangan:</strong> Grafik menampilkan rata-rata durasi dari pembuatan Purchase Order sampai penerimaan barang di warehouse.
+        <!-- Controls Card -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">Chart Controls</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="controls">
+                            <label for="monthSelect">Tampilkan:</label>
+                            <select id="monthSelect">
+                                <option value="3">3 bulan terakhir</option>
+                                <option value="6">6 bulan terakhir</option>
+                                <option value="12" selected>12 bulan terakhir</option>
+                                <option value="24">24 bulan terakhir</option>
+                            </select>
+                            <button onclick="loadChart()">Muat Grafik</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendor Filters Card -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">Vendor Filters</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="vendor-filters" id="vendorFilters">
+                            <div class="filter-buttons">
+                                <button onclick="selectAllVendors()">Pilih Semua</button>
+                                <button onclick="clearAllVendors()">Bersihkan Semua</button>
+                            </div>
+                            <div class="vendor-list" id="vendorList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Card -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">Lead Time Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="error" id="errorBox"></div>
+                        <div class="loading" id="loading">Memuat data grafik</div>
+                        <div class="chart-wrapper" id="chartWrapper">
+                            <canvas id="leadTimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="row">
+            <div class="col-12">
+                <div class="info-box">
+                    <strong>Keterangan:</strong> Grafik menampilkan rata-rata durasi dari pembuatan Purchase Order sampai penerimaan barang di warehouse.
+                </div>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script>
     let chartInstance = null;
     let chartData = null;
@@ -471,5 +590,4 @@
     // Auto-load chart on page load
     window.addEventListener('load', loadChart);
     </script>
-</body>
-</html>
+@endsection

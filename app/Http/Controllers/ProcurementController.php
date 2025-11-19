@@ -10,7 +10,7 @@ class ProcurementController extends Controller
 {
     public function chartPage()
     {
-        return view('procurement.chart');
+        return view('procurement.index');
     }
 
     public function chartLeadTimeByVendor(Request $request)
