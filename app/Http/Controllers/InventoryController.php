@@ -24,6 +24,7 @@ class InventoryController extends Controller
     {
         return view('inventory.index');
     }
+
     /**
      * Get filter options
      */
@@ -46,21 +47,20 @@ class InventoryController extends Controller
      */
     public function getOverview(Request $request)
     {
-        Log::info('InventoryController@getOverview called', $request->all());
         $query = FactInventorySnapshot::query();
 
-        // Apply filters
-        if ($request->warehouse_id) {
+        // Apply filters - check for non-empty values
+        if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->category) {
+        if ($request->filled('category')) {
             $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
-        if ($request->date_range) {
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
                 $query->whereBetween('date_id', [
@@ -68,10 +68,8 @@ class InventoryController extends Controller
                     str_replace('-', '', $dates[1])
                 ]);
             }
-        }
-
-        // Get latest snapshot if no date filter
-        if (!$request->date_range) {
+        } else {
+            // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
             if ($latestDateId) {
                 $query->where('date_id', $latestDateId);
@@ -103,44 +101,64 @@ class InventoryController extends Controller
      */
     public function getQtyByDate(Request $request)
     {
-        Log::info('InventoryController@getQtyByDate called', $request->all());
         $query = FactInventorySnapshot::query();
 
-        if ($request->warehouse_id) {
+        // Apply filters BEFORE date filtering
+        if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->category) {
+        if ($request->filled('category')) {
             $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
-        if ($request->date_range) {
+        // Build date list: only the 1st day of each month (respecting optional date_range)
+        $dateQuery = DimDate::query();
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
+                $startId = str_replace('-', '', $dates[0]);
+                $endId = str_replace('-', '', $dates[1]);
+                $dateQuery->whereBetween('date_id', [$startId, $endId]);
             }
         }
+        $dateQuery->whereRaw('DAY(full_date) = 1');
+        $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
 
-        $data = $query->select('date_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
+        if (empty($dateIds)) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => [],
+                    'values' => []
+                ]
+            ]);
+        }
+
+        $query->whereIn('date_id', $dateIds);
+
+        $rows = $query->select('date_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
             ->groupBy('date_id')
             ->orderBy('date_id')
-            ->get();
+            ->get()
+            ->keyBy('date_id');
 
-        $labels = $data->map(function ($item) {
-            $dateModel = DimDate::find($item->date_id);
-            return $dateModel ? $dateModel->full_date->format('d M Y') : $item->date_id;
-        });
+        $labels = array_map(function ($d) {
+            $dm = DimDate::find($d);
+            return $dm ? $dm->full_date->format('d M Y') : $d;
+        }, $dateIds);
+
+        $values = array_map(function ($d) use ($rows) {
+            return isset($rows[$d]) ? (int) $rows[$d]->total_qty : 0;
+        }, $dateIds);
 
         return response()->json([
             'success' => true,
             'data' => [
-                'labels' => $labels->values(),
-                'values' => $data->pluck('total_qty')->values()
+                'labels' => $labels,
+                'values' => $values
             ]
         ]);
     }
@@ -150,16 +168,15 @@ class InventoryController extends Controller
      */
     public function getQtyByWarehouse(Request $request)
     {
-        Log::info('InventoryController@getQtyByWarehouse called', $request->all());
         $query = FactInventorySnapshot::query();
 
-        if ($request->category) {
+        if ($request->filled('category')) {
             $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
-        if ($request->date_range) {
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
                 $query->whereBetween('date_id', [
@@ -192,43 +209,47 @@ class InventoryController extends Controller
 
     /**
      * Get quantity by date & warehouse (stacked / 3-dimension)
-     *
-     * Returns:
-     * {
-     *   labels: ['01 Jan 2025', ...],
-     *   warehouses: ['WH A', 'WH B', ...],
-     *   data: { 'WH A': [v1, v2, ...], 'WH B': [...] }
-     * }
      */
     public function getQtyByDateWarehouse(Request $request)
     {
-        Log::info('InventoryController@getQtyByDateWarehouse called', $request->all());
         $query = FactInventorySnapshot::query();
 
-        if ($request->category) {
+        // Apply filters BEFORE building date list
+        if ($request->filled('category')) {
             $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
-        if ($request->warehouse_id) {
+        if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->date_range) {
+        // Build date list: only the 1st day of each month
+        $dateQuery = DimDate::query();
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
-        } else {
-            $latestDateId = FactInventorySnapshot::max('date_id');
-            if ($latestDateId) {
-                $query->where('date_id', $latestDateId);
+                $startId = str_replace('-', '', $dates[0]);
+                $endId = str_replace('-', '', $dates[1]);
+                $dateQuery->whereBetween('date_id', [$startId, $endId]);
             }
         }
+        $dateQuery->whereRaw('DAY(full_date) = 1');
+        $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
+
+        if (empty($dateIds)) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => [],
+                    'warehouses' => [],
+                    'data' => new \stdClass()
+                ]
+            ]);
+        }
+
+        $query->whereIn('date_id', $dateIds);
 
         $rows = $query->select('date_id', 'warehouse_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
             ->with('warehouse')
@@ -236,25 +257,24 @@ class InventoryController extends Controller
             ->orderBy('date_id')
             ->get();
 
-        // collect ordered unique date_ids
-        $dateIds = $rows->pluck('date_id')->unique()->sort()->values()->all();
+        // Ordered unique date_ids already available as $dateIds
         $labels = array_map(function ($d) {
             $dm = DimDate::find($d);
             return $dm ? $dm->full_date->format('d M Y') : $d;
         }, $dateIds);
 
-        // collect unique warehouses (by name) in stable order
+        // Collect unique warehouses
         $warehouses = $rows->map(function ($r) {
             return $r->warehouse->warehouse_name ?? ('WH ' . $r->warehouse_id);
         })->unique()->values()->all();
 
-        // initialize data mapping
+        // Initialize data mapping
         $dataMap = [];
         foreach ($warehouses as $wh) {
             $dataMap[$wh] = array_fill(0, count($dateIds), 0);
         }
 
-        // fill values
+        // Fill values
         foreach ($rows as $row) {
             $whName = $row->warehouse->warehouse_name ?? ('WH ' . $row->warehouse_id);
             $dateIndex = array_search($row->date_id, $dateIds, true);
@@ -280,13 +300,13 @@ class InventoryController extends Controller
     {
         $query = FactInventorySnapshot::query();
 
-        if ($request->category) {
+        if ($request->filled('category')) {
             $query->whereHas('product', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
-        if ($request->date_range) {
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
                 $query->whereBetween('date_id', [
@@ -323,11 +343,11 @@ class InventoryController extends Controller
     {
         $query = FactInventorySnapshot::query();
 
-        if ($request->warehouse_id) {
+        if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->date_range) {
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
                 $query->whereBetween('date_id', [
@@ -365,11 +385,11 @@ class InventoryController extends Controller
     {
         $query = FactInventorySnapshot::query();
 
-        if ($request->warehouse_id) {
+        if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->date_range) {
+        if ($request->filled('date_range')) {
             $dates = explode(' to ', $request->date_range);
             if (count($dates) == 2) {
                 $query->whereBetween('date_id', [
@@ -389,7 +409,7 @@ class InventoryController extends Controller
             ->groupBy('warehouse_id', 'product_id')
             ->get();
 
-        // prepare unique warehouses and categories
+        // Prepare unique warehouses and categories
         $warehouses = $data->map(function ($d) {
             return $d->warehouse->warehouse_name ?? ('WH ' . $d->warehouse_id);
         })->unique()->values()->all();
