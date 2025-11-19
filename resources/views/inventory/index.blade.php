@@ -298,6 +298,9 @@
                             );
                         });
                     }
+                    
+                    // Load dashboard data AFTER filters are loaded
+                    loadAllInventoryData();
                 }
             } catch (error) {
                 console.error('Error loading filters:', error);
@@ -637,7 +640,7 @@
             });
 
             // Load dashboard data
-            loadAllInventoryData();
+            // loadAllInventoryData();
 
             // Apply filters button
             $('#apply-filters').on('click', function() {

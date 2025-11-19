@@ -29,7 +29,7 @@ Route::prefix('/sales')->name('sales.')->group(function () {
         ->name('getUnsoldProductsByRegion');
 });
 
-Route::prefix('inventory')->group(function () {
+Route::prefix('/inventory')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('inventory.index');
         Route::get('/filter-options', [InventoryController::class, 'getFilterOptions'])->name('inventory.getFilterOptions');
         Route::get('/overview', [InventoryController::class, 'getOverview'])->name('inventory.getOverview');
