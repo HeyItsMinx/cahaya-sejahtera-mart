@@ -165,6 +165,10 @@ class SalesController extends Controller
             $query->where('dim_store.region', $request->region);
         }
 
+        if ($request->has('category') && !empty($request->category)) {
+            $query->where('dim_product.category', $request->category);
+        }
+
         $data = $query->get();
 
         return response()->json([
