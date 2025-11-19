@@ -68,7 +68,7 @@
         }
         .chart-wrapper {
             position: relative;
-            height: 450px;
+            height: 600px;
             margin: 30px 0;
             display: none;
         }
@@ -311,6 +311,25 @@
         
         const selectedVendors = getSelectedVendors();
         const datasets = [];
+        let minValue = Infinity;
+        let maxValue = 0;
+
+        // Collect all selected vendor data to find min/max
+        chartData.vendors.forEach((vendor, idx) => {
+            if (selectedVendors.includes(vendor.name)) {
+                vendor.data.forEach(value => {
+                    if (value !== null && value !== undefined) {
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                });
+            }
+        });
+
+        // Calculate min scale (1 step dibawah min value)
+        const stepSize = 0.1;
+        const minScale = Math.floor((minValue - stepSize) * 10) / 10;
+        const maxScale = Math.ceil((maxValue + stepSize) * 10) / 10;
 
         chartData.vendors.forEach((vendor, idx) => {
             if (selectedVendors.includes(vendor.name)) {
@@ -399,9 +418,11 @@
                             font: { size: 13, weight: 'bold' },
                             color: '#333'
                         },
-                        beginAtZero: true,
+                        min: minScale,
+                        max: maxScale,
                         grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: true },
-                        ticks: { font: { size: 11 } }
+                        ticks: { font: { size: 11 }, stepSize: 0.1 },
+                        padding: { top: 30, bottom: 30 }
                     }
                 }
             }
