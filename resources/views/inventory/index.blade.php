@@ -12,16 +12,18 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/animate.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/prism.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/select2.css') }}">
-    
+
     <style>
         .stat-card {
             transition: transform 0.2s;
             height: 100%;
         }
+
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
+
         .chart-container {
             position: relative;
             height: 300px;
@@ -43,7 +45,7 @@
             </div>
         </div>
 
-       <!-- Filter Section -->
+        <!-- Filter Section -->
         <div class="row">
             <div class="col-12">
                 <div class="card mb-4">
@@ -65,8 +67,14 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label for="filter-date-range" class="form-label">Date Range</label>
-                                <input type="text" id="filter-date-range" class="form-control" placeholder="Select date range">
+                                <label for="filter-date" class="form-label">Date</label>
+                                <div class="input-group">
+                                    <input type="text" id="filter-date" class="form-control"
+                                        placeholder="Select date (optional)">
+                                    <button class="btn btn-outline-secondary" type="button" id="clear-date">
+                                        <i class="fa fa-times"></i> Clear
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="col-md-3 d-flex align-items-end">
@@ -100,30 +108,6 @@
                     <div class="card-body">
                         <span class="d-block text-muted mb-1 small">Total Value On Hand</span>
                         <h5 id="stat-total-value" class="mb-0">Loading...</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <span class="d-block text-muted mb-1 small">Avg Qty Per Product</span>
-                        <h5 id="stat-avg-qty" class="mb-0">Loading...</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <span class="d-block text-muted mb-1 small">Total Warehouses</span>
-                        <h5 id="stat-total-warehouses" class="mb-0">Loading...</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <span class="d-block text-muted mb-1 small">Avg Value Per Warehouse</span>
-                        <h5 id="stat-avg-value" class="mb-0">Loading...</h5>
                     </div>
                 </div>
             </div>
@@ -221,16 +205,17 @@
 @section('scripts')
     <script src="{{ asset('js\axios.min.js') }}"></script>
     <script src="{{ asset('js\vue.js') }}"></script>
-    {{-- <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
+    {{--
+    <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
     <script src="{{ asset('assets/js/flat-pickr/custom-flatpickr.js') }}"></script>
     <script src="{{ asset('assets/js/select2/select2.full.min.js') }}"></script> --}}
     <script src="{{ asset('js/fileinput/fileinput.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/gh/kartik-v/bootstrap-fileinput@5.5.0/themes/fa5/theme.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    
+
     <script>
         // Chart variables
         let qtyByDateChart, qtyByWarehouseChart, qtyDateWarehouseChart, valueByWarehouseChart, topProductsChart, warehouseCategoryChart;
@@ -251,11 +236,11 @@
         function getFilterParams() {
             const warehouse = $('#filter-warehouse').val();
             const category = $('#filter-category').val();
-            const dateRange = $('#filter-date-range').val();
+            const date = $('#filter-date').val();
             return new URLSearchParams({
                 warehouse_id: warehouse,
                 category: category,
-                date_range: dateRange
+                date: date
             });
         }
 
@@ -301,7 +286,7 @@
                             );
                         });
                     }
-                    
+
                     // Load dashboard data AFTER filters are loaded
                     loadAllInventoryData();
                 }
@@ -321,9 +306,6 @@
                     const data = json.data;
                     $('#stat-total-qty').text(numberFormatter.format(data.total_qty || 0));
                     $('#stat-total-value').text(idrFormatter.format(data.total_value || 0));
-                    $('#stat-avg-qty').text(numberFormatter.format(Math.round(data.avg_qty || 0)));
-                    $('#stat-total-warehouses').text(data.total_warehouses || 0);
-                    $('#stat-avg-value').text(idrFormatter.format(data.avg_value || 0));
                 }
             } catch (error) {
                 console.error('Error loading overview:', error);
@@ -367,7 +349,7 @@
                                 y: {
                                     beginAtZero: true,
                                     ticks: {
-                                        callback: function(value) {
+                                        callback: function (value) {
                                             return numberFormatter.format(value);
                                         }
                                     }
@@ -416,7 +398,7 @@
                             scales: {
                                 x: {
                                     ticks: {
-                                        callback: function(value) {
+                                        callback: function (value) {
                                             return numberFormatter.format(value);
                                         }
                                     }
@@ -445,7 +427,7 @@
                 const raw = json.data.data; // object keyed by warehouse -> array of values aligned to labels
 
                 const datasets = warehouses.map((wh, idx) => {
-                    const palette = ['rgb(59, 130, 246)','rgb(16, 185, 129)','rgb(239, 68, 68)','rgb(249, 115, 22)','rgb(139, 92, 246)','rgb(236, 72, 153)','rgb(6, 182, 212)','rgb(34, 197, 94)'];
+                    const palette = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(239, 68, 68)', 'rgb(249, 115, 22)', 'rgb(139, 92, 246)', 'rgb(236, 72, 153)', 'rgb(6, 182, 212)', 'rgb(34, 197, 94)'];
                     return {
                         label: wh,
                         data: raw[wh] || Array(labels.length).fill(0),
@@ -470,7 +452,7 @@
                             legend: { position: 'top' },
                             tooltip: {
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         return context.dataset.label + ': ' + numberFormatter.format(context.parsed.y);
                                     }
                                 }
@@ -481,7 +463,7 @@
                             y: {
                                 stacked: true,
                                 ticks: {
-                                    callback: function(value) { return numberFormatter.format(value); }
+                                    callback: function (value) { return numberFormatter.format(value); }
                                 }
                             }
                         }
@@ -530,7 +512,7 @@
                                 },
                                 tooltip: {
                                     callbacks: {
-                                        label: function(context) {
+                                        label: function (context) {
                                             return idrFormatter.format(context.parsed);
                                         }
                                     }
@@ -577,7 +559,7 @@
                             scales: {
                                 x: {
                                     ticks: {
-                                        callback: function(value) { return numberFormatter.format(value); }
+                                        callback: function (value) { return numberFormatter.format(value); }
                                     }
                                 }
                             }
@@ -614,7 +596,7 @@
                                 y: {
                                     stacked: true,
                                     ticks: {
-                                        callback: function(value) { return numberFormatter.format(value); }
+                                        callback: function (value) { return numberFormatter.format(value); }
                                     }
                                 }
                             }
@@ -627,7 +609,7 @@
         }
 
         // Document ready
-        $(document).ready(function() {
+        $(document).ready(function () {
             // Load filters
             loadFilters();
 
@@ -637,16 +619,22 @@
             });
 
             // Initialize date range picker
-            flatpickr('#filter-date-range', {
-                mode: 'range',
-                dateFormat: 'Y-m-d'
+            flatpickr('#filter-date', {
+                dateFormat: 'Y-m-d',
+                allowInput: true,
             });
 
             // Load dashboard data
             // loadAllInventoryData();
 
             // Apply filters button
-            $('#apply-filters').on('click', function() {
+            $('#apply-filters').on('click', function () {
+                loadAllInventoryData();
+            });
+
+            $('#clear-date').on('click', function () {
+                $('#filter-date').val('');
+                // Optional: auto reload data setelah clear
                 loadAllInventoryData();
             });
         });

@@ -60,14 +60,9 @@ class InventoryController extends Controller
             });
         }
 
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
+        if ($request->filled('date')) {
+            $dateId = str_replace('-', '', $request->date);
+            $query->where('date_id', $dateId);
         } else {
             // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
@@ -78,20 +73,12 @@ class InventoryController extends Controller
 
         $total_qty = $query->sum('quantity_on_hand');
         $total_value = $query->sum('value_on_hand');
-        $active_products = $query->distinct('product_id')->count('product_id');
-        $total_warehouses = $query->distinct('warehouse_id')->count('warehouse_id');
-        $avg_qty = $active_products > 0 ? $total_qty / $active_products : 0;
-        $avg_value = $total_warehouses > 0 ? $total_value / $total_warehouses : 0;
 
         return response()->json([
             'success' => true,
             'data' => [
                 'total_qty' => $total_qty,
                 'total_value' => $total_value,
-                'active_products' => $active_products,
-                'total_warehouses' => $total_warehouses,
-                'avg_qty' => $avg_qty,
-                'avg_value' => $avg_value
             ]
         ]);
     }
@@ -114,17 +101,18 @@ class InventoryController extends Controller
             });
         }
 
-        // Build date list: only the 1st day of each month (respecting optional date_range)
+        // Build date list
         $dateQuery = DimDate::query();
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $startId = str_replace('-', '', $dates[0]);
-                $endId = str_replace('-', '', $dates[1]);
-                $dateQuery->whereBetween('date_id', [$startId, $endId]);
-            }
+
+        if ($request->filled('date')) {
+            // Jika ada filter date: tampilkan HANYA tanggal yang dipilih
+            $dateId = str_replace('-', '', $request->date);
+            $dateQuery->where('date_id', $dateId);
+        } else {
+            // Jika TIDAK ada filter date: tampilkan tanggal 1 setiap bulan
+            $dateQuery->whereRaw('DAY(full_date) = 1');
         }
-        $dateQuery->whereRaw('DAY(full_date) = 1');
+
         $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
 
         if (empty($dateIds)) {
@@ -176,16 +164,11 @@ class InventoryController extends Controller
             });
         }
 
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
+        if ($request->filled('date')) {
+            $dateId = str_replace('-', '', $request->date);
+            $query->where('date_id', $dateId);
         } else {
-            // Get latest date
+            // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
             if ($latestDateId) {
                 $query->where('date_id', $latestDateId);
@@ -225,17 +208,18 @@ class InventoryController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        // Build date list: only the 1st day of each month
+        // Build date list
         $dateQuery = DimDate::query();
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $startId = str_replace('-', '', $dates[0]);
-                $endId = str_replace('-', '', $dates[1]);
-                $dateQuery->whereBetween('date_id', [$startId, $endId]);
-            }
+
+        if ($request->filled('date')) {
+            // Jika ada filter date: tampilkan HANYA tanggal yang dipilih
+            $dateId = str_replace('-', '', $request->date);
+            $dateQuery->where('date_id', $dateId);
+        } else {
+            // Jika TIDAK ada filter date: tampilkan tanggal 1 setiap bulan
+            $dateQuery->whereRaw('DAY(full_date) = 1');
         }
-        $dateQuery->whereRaw('DAY(full_date) = 1');
+
         $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
 
         if (empty($dateIds)) {
@@ -306,15 +290,11 @@ class InventoryController extends Controller
             });
         }
 
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
+        if ($request->filled('date')) {
+            $dateId = str_replace('-', '', $request->date);
+            $query->where('date_id', $dateId);
         } else {
+            // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
             if ($latestDateId) {
                 $query->where('date_id', $latestDateId);
@@ -347,15 +327,11 @@ class InventoryController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
+        if ($request->filled('date')) {
+            $dateId = str_replace('-', '', $request->date);
+            $query->where('date_id', $dateId);
         } else {
+            // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
             if ($latestDateId) {
                 $query->where('date_id', $latestDateId);
@@ -389,15 +365,11 @@ class InventoryController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        if ($request->filled('date_range')) {
-            $dates = explode(' to ', $request->date_range);
-            if (count($dates) == 2) {
-                $query->whereBetween('date_id', [
-                    str_replace('-', '', $dates[0]),
-                    str_replace('-', '', $dates[1])
-                ]);
-            }
+        if ($request->filled('date')) {
+            $dateId = str_replace('-', '', $request->date);
+            $query->where('date_id', $dateId);
         } else {
+            // Get latest snapshot if no date filter
             $latestDateId = FactInventorySnapshot::max('date_id');
             if ($latestDateId) {
                 $query->where('date_id', $latestDateId);
