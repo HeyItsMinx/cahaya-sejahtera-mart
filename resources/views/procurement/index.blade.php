@@ -1,18 +1,11 @@
 @extends('layouts.app')
 
 @section('title')
-    <title>Procurement Dashboard - Lead Time Chart</title>
+    <title>Inventory Accumulating Snapshot - Average Lead Time</title>
 @endsection
 
 @section('styles')
     <style>
-        .main-content {
-            margin-top: 120px;
-            padding-left: 200px;
-            padding-right: 200px;
-            min-height: calc(100vh - 120px);
-        }
-
         body {
             background-color: #f5f7fa;
         }
@@ -274,14 +267,14 @@
 @endsection
 
 @section('content')
-    <div class="main-content">
+    <div class="container-fluid">
         <!-- Breadcrumb -->
         <div class="row">
             <div class="col-12">
                 <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb">
+                    <ol class="breadcrumb mb-3">
                         <li class="breadcrumb-item"><a href="{{ url('/') }}">Home</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Procurement Dashboard</li>
+                        <li class="breadcrumb-item active" aria-current="page">Inventory Accumulating Snapshot</li>
                     </ol>
                 </nav>
             </div>
@@ -290,8 +283,8 @@
         <!-- Page Title -->
         <div class="row mb-4">
             <div class="col-12">
-                <h1 class="page-title">📊 Rata-rata Lead Time Bulanan per Vendor</h1>
-                <p class="page-subtitle">Durasi rata-rata (hari) dari PO dibuat sampai barang diterima, per vendor, per bulan</p>
+                <h1 class="page-title">📊 Average Lead Time by Vendor - Monthly Analysis</h1>
+                <p class="page-subtitle">Average duration (days) from Purchase Order creation to warehouse receipt, grouped by vendor and month</p>
             </div>
         </div>
 
@@ -304,14 +297,14 @@
                     </div>
                     <div class="card-body">
                         <div class="controls">
-                            <label for="monthSelect">Tampilkan:</label>
+                            <label for="monthSelect">Display Period:</label>
                             <select id="monthSelect">
-                                <option value="3">3 bulan terakhir</option>
-                                <option value="6">6 bulan terakhir</option>
-                                <option value="12" selected>12 bulan terakhir</option>
-                                <option value="24">24 bulan terakhir</option>
+                                <option value="3">Last 3 months</option>
+                                <option value="6">Last 6 months</option>
+                                <option value="12" selected>Last 12 months</option>
+                                <option value="24">Last 24 months</option>
                             </select>
-                            <button onclick="loadChart()">Muat Grafik</button>
+                            <button onclick="loadChart()">Load Chart</button>
                         </div>
                     </div>
                 </div>
@@ -328,8 +321,8 @@
                     <div class="card-body">
                         <div class="vendor-filters" id="vendorFilters">
                             <div class="filter-buttons">
-                                <button onclick="selectAllVendors()">Pilih Semua</button>
-                                <button onclick="clearAllVendors()">Bersihkan Semua</button>
+                                <button onclick="selectAllVendors()">Select All</button>
+                                <button onclick="clearAllVendors()">Clear All</button>
                             </div>
                             <div class="vendor-list" id="vendorList"></div>
                         </div>
@@ -347,7 +340,7 @@
                     </div>
                     <div class="card-body">
                         <div class="error" id="errorBox"></div>
-                        <div class="loading" id="loading">Memuat data grafik</div>
+                        <div class="loading" id="loading">Loading chart data</div>
                         <div class="chart-wrapper" id="chartWrapper">
                             <canvas id="leadTimeChart"></canvas>
                         </div>
@@ -360,7 +353,7 @@
         <div class="row">
             <div class="col-12">
                 <div class="info-box">
-                    <strong>Keterangan:</strong> Grafik menampilkan rata-rata durasi dari pembuatan Purchase Order sampai penerimaan barang di warehouse.
+                    <strong>Information:</strong> This chart displays the average duration from Purchase Order creation to goods receipt at the warehouse, grouped by vendor and month.
                 </div>
             </div>
         </div>
