@@ -8,9 +8,9 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/animate.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/prism.css') }}">
-    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors/select2.css') }}">
     
     <style>
@@ -221,12 +221,15 @@
 @section('scripts')
     <script src="{{ asset('js\axios.min.js') }}"></script>
     <script src="{{ asset('js\vue.js') }}"></script>
-    <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
+    {{-- <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
     <script src="{{ asset('assets/js/flat-pickr/custom-flatpickr.js') }}"></script>
-    <script src="{{ asset('assets/js/select2/select2.full.min.js') }}"></script>
+    <script src="{{ asset('assets/js/select2/select2.full.min.js') }}"></script> --}}
     <script src="{{ asset('js/fileinput/fileinput.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/gh/kartik-v/bootstrap-fileinput@5.5.0/themes/fa5/theme.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     
     <script>
         // Chart variables
