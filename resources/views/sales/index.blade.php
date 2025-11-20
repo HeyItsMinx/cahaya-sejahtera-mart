@@ -615,6 +615,11 @@
             $('#apply-filters').on('click', function() {
                 loadAllDashboardData();
             });
+
+            $('#clear-date').on('click', function () {
+                $('#filter-date-range').val('');
+                loadAllDashboardData();
+            });
         });
     </script>
 @endsection
