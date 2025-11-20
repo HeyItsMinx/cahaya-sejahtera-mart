@@ -289,57 +289,72 @@ class SalesController extends Controller
     public function getUnsoldProductsByRegion(Request $request)
     {
        // 1. Get the base query of all unsold items
-        $unsoldSubquery = $this->getUnsoldBaseQuery($request);
+        $baseQuery = $this->getUnsoldBaseQuery($request);
 
-        // 2. Find the Top 10 most-failing product IDs overall, considering filters
-        $top10ProductIdsQuery = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold"))
-            ->mergeBindings($unsoldSubquery)
-            ->join('dim_product AS p', 'unsold.product_id', '=', 'p.product_id')
-            ->join('dim_store AS s', 'unsold.store_id', '=', 's.store_id')
-            ->select('unsold.product_id', DB::raw('COUNT(*) as total_failures'));
-            
-        // Apply filters to the subquery
+        $top10Query = clone $baseQuery;
+
+        // Join tabel dimensi yang diperlukan untuk filter
+        $top10Query->join('dim_product AS p', 'fpc.product_id', '=', 'p.product_id')
+                   ->join('dim_store AS s', 'fpc.store_id', '=', 's.store_id');
+
+        // Terapkan Filter (Region/Category)
         if ($request->has('region') && !empty($request->region)) {
-            $top10ProductIdsQuery->where('s.region', $request->region);
+            $top10Query->where('s.region', $request->region);
         }
         if ($request->has('category') && !empty($request->category)) {
-            $top10ProductIdsQuery->where('p.category', $request->category);
+            $top10Query->where('p.category', $request->category);
         }
 
-        $top10ProductIds = $top10ProductIdsQuery
-            ->groupBy('unsold.product_id') 
+        // Ambil Top 10 berdasarkan jumlah kegagalan
+        $top10Products = $top10Query->select(
+                'fpc.product_id',
+                'p.product_description',
+                DB::raw('COUNT(*) as total_failures')
+            )
+            ->groupBy('fpc.product_id', 'p.product_description')
             ->orderBy('total_failures', 'desc')
             ->limit(10)
-            ->pluck('product_id');
+            ->get();
 
-        $productTotalFailures = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold_totals"))
-            ->mergeBindings($unsoldSubquery)
-            ->select('product_id', DB::raw('COUNT(*) as total_failures'))
-            ->whereIn('product_id', $top10ProductIds)
-            ->groupBy('product_id');
+        // Jika tidak ada data, kembalikan array kosong
+        if ($top10Products->isEmpty()) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
 
-        $query = DB::table(DB::raw("({$unsoldSubquery->toSql()}) AS unsold_final"))
-            ->mergeBindings($unsoldSubquery)
-            ->join('dim_product AS p', 'unsold_final.product_id', '=', 'p.product_id')
-            ->join('dim_store AS s', 'unsold_final.store_id', '=', 's.store_id')
-            ->joinSub($productTotalFailures, 'totals', function ($join) {
-                $join->on('unsold_final.product_id', '=', 'totals.product_id');
-            })
-            ->whereIn('unsold_final.product_id', $top10ProductIds) // Filter for Top 10
+        // Ambil ID produk untuk filter query kedua
+        $topProductIds = $top10Products->pluck('product_id')->toArray();
+        
+        // Buat Map untuk lookup total failures nanti: [product_id => total_failures]
+        $productTotalsMap = $top10Products->pluck('total_failures', 'product_id');
+
+
+        $regionQuery = $this->getUnsoldBaseQuery($request);
+
+        $regionalData = $regionQuery
+            ->join('dim_product AS p', 'fpc.product_id', '=', 'p.product_id')
+            ->join('dim_store AS s', 'fpc.store_id', '=', 's.store_id')
+            ->whereIn('fpc.product_id', $topProductIds) // Filter HANYA untuk Top 10 tadi
             ->select(
+                'p.product_id',
                 'p.product_description',
                 's.region',
-                'totals.total_failures', 
                 DB::raw('COUNT(*) as unsold_count_by_region')
             )
-            ->groupBy('p.product_description', 's.region', 'totals.total_failures')
-            ->orderBy('totals.total_failures', 'desc');
+            ->groupBy('p.product_id', 'p.product_description', 's.region')
+            ->get();
 
-        $data = $query->get();
+
+        
+        $finalData = $regionalData->map(function ($item) use ($productTotalsMap) {
+            $item->total_failures = $productTotalsMap[$item->product_id] ?? 0;
+            return $item;
+        });
+
+        $finalData = $finalData->sortByDesc('total_failures')->values();
 
         return response()->json([
             'success' => true,
-            'data' => $data
+            'data' => $finalData
         ]);
     }
 }

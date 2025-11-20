@@ -69,7 +69,12 @@
 
                             <div class="col-md-3">
                                 <label for="filter-date-range" class="form-label">Date Range</label>
-                                <input type="text" id="filter-date-range" class="form-control" placeholder="Select date range">
+                               <div class="input-group">
+                                    <input type="text" id="filter-date-range" class="form-control" placeholder="Select date (optional)">
+                                    <button class="btn btn-outline-secondary" type="button" id="clear-date">
+                                        <i class="fa fa-times"></i> Clear
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="col-md-3 d-flex align-items-end">
@@ -223,14 +228,18 @@
         let unsoldProductsChart;
 
         // Helper to format currency
-        const idrFormatter = new Intl.NumberFormat('id-ID', {
+        const idrFormatter = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
+            notation: 'compact'
         });
 
         // Helper to format simple numbers
-        const numberFormatter = new Intl.NumberFormat('id-ID');
+        const numberFormatter = new Intl.NumberFormat('en-US',{
+            notation: 'compact',
+            maximumFractionDigits: 1
+        });
 
         /**
          * Get current filter values as a URLSearchParams string
