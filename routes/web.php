@@ -21,10 +21,6 @@ Route::prefix('/sales')->name('sales.')->group(function () {
         ->name('getProfitTrendByCategory');
     Route::get('/overview', [SalesController::class, 'getSalesOverview'])->name('getSalesOverview');
     // Promotions
-    Route::get('/ineffective-promotions', [SalesController::class, 'getMostIneffectivePromotions'])
-        ->name('getMostIneffectivePromotions');
-    Route::get('/top-successful-promotions', [SalesController::class, 'getTop5SuccessfulPromotions'])
-        ->name('getTop5SuccessfulPromotions');
     Route::get('/unsold-products-by-region', [SalesController::class, 'getUnsoldProductsByRegion'])
         ->name('getUnsoldProductsByRegion');
 });

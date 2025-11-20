@@ -26,6 +26,9 @@
             position: relative;
             height: 300px;
         }
+        .select2-container .select2-selection--single{
+            height: 100%;
+        }
     </style>
 @endsection
 
@@ -65,10 +68,8 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label for="filter-promotion" class="form-label">Promotion</label>
-                                <select id="filter-promotion" name="promotion" class="form-select select2">
-                                    <option value="">All Promotions</option>
-                                </select>
+                                <label for="filter-date-range" class="form-label">Date Range</label>
+                                <input type="text" id="filter-date-range" class="form-control" placeholder="Select date range">
                             </div>
 
                             <div class="col-md-3 d-flex align-items-end">
@@ -189,28 +190,6 @@
                 <h4 class="mb-3">Promotion Analysis</h4>
             </div>
         </div>
-        <div class="row g-3 mb-4">
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">Top 5 Successful Promotions (by Qty Sold)</h5>
-                        <div class="chart-container">
-                            <canvas id="successfulPromoChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">Top 5 Most Ineffective Promotions</h5>
-                        <div class="chart-container">
-                            <canvas id="ineffectivePromosChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <div class="row g-3 mb-4">
             <div class="col-12">
@@ -259,11 +238,11 @@
         function getFilterParams() {
             const region = $('#filter-region').val();
             const category = $('#filter-category').val();
-            const promotion = $('#filter-promotion').val();
+            const dateRange = $('#filter-date-range').val();
             return new URLSearchParams({
                 region: region,
                 category: category,
-                promotion_id: promotion
+                date_range: dateRange,
             });
         }
 
@@ -278,8 +257,6 @@
             loadTop5ProductsChart(params);
             loadProfitTrendByCategory(params);
             
-            loadSuccessfulPromoChart(params); 
-            loadIneffectivePromosChart(params);
             loadUnsoldProductsChart(params);
         }
 
@@ -514,92 +491,6 @@
             };
         }
 
-        /**
-         * Load the Top 5 Successful Promotions bar chart
-         */
-        async function loadSuccessfulPromoChart(params) {
-            try {
-                const response = await fetch('{{ route('sales.getTop5SuccessfulPromotions') }}?' + params);
-                const json = await response.json();
-                if (json.success) {
-                    const data = json.data;
-                    const labels = data.map(d => d.promotion_name);
-                    const values = data.map(d => d.total_quantity_sold);
-
-                    const ctx = document.getElementById('successfulPromoChart').getContext('2d');
-                    if (successfulPromoChart) {
-                        successfulPromoChart.destroy();
-                    }
-                    successfulPromoChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Total Quantity Sold',
-                                data: values,
-                                backgroundColor: 'rgb(34, 197, 94)',
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading successful promo chart:', error);
-            }
-        }
-
-        /**
-         * Load the Top 5 Most Ineffective Promotions bar chart
-         */
-        async function loadIneffectivePromosChart(params) {
-            try {
-                const response = await fetch('{{ route('sales.getMostIneffectivePromotions') }}?' + params);
-                const json = await response.json();
-                if (json.success) {
-                    const data = json.data;
-                    const labels = data.map(d => d.promotion_name);
-                    const values = data.map(d => d.unsold_items_count);
-
-                    const ctx = document.getElementById('ineffectivePromosChart').getContext('2d');
-                    if (ineffectivePromosChart) {
-                        ineffectivePromosChart.destroy();
-                    }
-                    ineffectivePromosChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Failed Promo Item Count',
-                                data: values,
-                                backgroundColor: 'rgb(239, 68, 68)',
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading ineffective promos:', error);
-            }
-        }
-
         async function loadUnsoldProductsChart(params) {
             try {
                 const response = await fetch('{{ route('sales.getUnsoldProductsByRegion') }}?' + params);
@@ -701,6 +592,11 @@
             $('.select2').select2({
                 width: '100%',
                 allowClear: true
+            });
+
+            flatpickr('#filter-date-range', {
+                mode: 'range',
+                dateFormat: 'Y-m-d'
             });
             
             // Load all dashboard data
