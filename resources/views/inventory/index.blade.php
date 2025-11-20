@@ -29,7 +29,7 @@
             height: 300px;
         }
 
-        .select2-container .select2-selection--single{
+        .select2-container .select2-selection--single {
             height: 100%;
         }
     </style>
@@ -209,11 +209,12 @@
 @section('scripts')
     <script src="{{ asset('js\axios.min.js') }}"></script>
     <script src="{{ asset('js\vue.js') }}"></script>
-    
+
     <script src="{{ asset('assets/js/flat-pickr/flatpickr.js') }}"></script>
     <script src="{{ asset('assets/js/flat-pickr/custom-flatpickr.js') }}"></script>
     <script src="{{ asset('assets/js/select2/select2.full.min.js') }}"></script>
     <script src="{{ asset('js/fileinput/fileinput.min.js') }}"></script>
+
     <script src="https://cdn.jsdelivr.net/gh/kartik-v/bootstrap-fileinput@5.5.0/themes/fa5/theme.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -230,6 +231,27 @@
 
         // Helper to format simple numbers
         const numberFormatter = new Intl.NumberFormat('id-ID');
+
+        function formatLargeNumber(value, isCurrency = false) {
+            const absValue = Math.abs(value);
+            let formatted = '';
+
+            if (absValue >= 1000000000) {
+                // Miliar
+                formatted = (value / 1000000000).toFixed(2) + ' B'; // M = Miliar
+            } else if (absValue >= 1000000) {
+                // Juta
+                formatted = (value / 1000000).toFixed(2) + ' M';
+            } else if (absValue >= 1000) {
+                // Ribu
+                formatted = (value / 1000).toFixed(2) + ' K';
+            } else {
+                formatted = value.toFixed(0);
+            }
+
+            return isCurrency ? 'Rp ' + formatted : formatted;
+        }
+
 
         /**
          * Get current filter values
@@ -305,13 +327,16 @@
                 const json = await response.json();
                 if (json.success && json.data) {
                     const data = json.data;
-                    $('#stat-total-qty').text(numberFormatter.format(data.total_qty || 0));
-                    $('#stat-total-value').text(idrFormatter.format(data.total_value || 0));
+
+                    // Format dengan singkatan untuk readability
+                    $('#stat-total-qty').text(formatLargeNumber(data.total_qty || 0));
+                    $('#stat-total-value').text(formatLargeNumber(data.total_value || 0, true));
                 }
             } catch (error) {
                 console.error('Error loading overview:', error);
             }
         }
+
 
         /**
          * Load Quantity by Date chart
@@ -486,10 +511,20 @@
                     const ctx = document.getElementById('value-by-warehouse-chart').getContext('2d');
                     if (valueByWarehouseChart) valueByWarehouseChart.destroy();
 
+                    // Calculate total for percentage
+                    const total = json.data.values.reduce((a, b) => a + b, 0);
+
+                    // Create labels with values and percentage
+                    const labelsWithValues = json.data.labels.map((label, index) => {
+                        const value = json.data.values[index];
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return label + ': ' + idrFormatter.format(value) + ' (' + percentage + '%)';
+                    });
+
                     valueByWarehouseChart = new Chart(ctx, {
                         type: 'doughnut',
                         data: {
-                            labels: json.data.labels,
+                            labels: labelsWithValues,
                             datasets: [{
                                 data: json.data.values,
                                 backgroundColor: [
@@ -509,12 +544,22 @@
                             maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    position: 'bottom'
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 10,
+                                        font: {
+                                            size: 11
+                                        },
+                                        boxWidth: 15
+                                    }
                                 },
                                 tooltip: {
                                     callbacks: {
                                         label: function (context) {
-                                            return idrFormatter.format(context.parsed);
+                                            const label = json.data.labels[context.dataIndex] || '';
+                                            const value = idrFormatter.format(context.parsed);
+                                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                            return label + ': ' + value + ' (' + percentage + '%)';
                                         }
                                     }
                                 }
@@ -526,6 +571,8 @@
                 console.error('Error loading value by warehouse chart:', error);
             }
         }
+
+
 
         /**
          * Load Top Products chart
@@ -590,17 +637,41 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'top' }
-                            },
-                            scales: {
-                                x: { stacked: true },
-                                y: {
-                                    stacked: true,
-                                    ticks: {
-                                        callback: function (value) { return numberFormatter.format(value); }
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        boxWidth: 12,
+                                        padding: 15
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ' + numberFormatter.format(context.parsed.y);
+                                        }
                                     }
                                 }
-                            }
+                            },
+                            scales: {
+                                x: {
+                                    // Grouped bar - tidak perlu stacked
+                                    grid: {
+                                        display: false
+                                    }
+                                },
+                                y: {
+                                    // Grouped bar - tidak perlu stacked
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function (value) {
+                                            return numberFormatter.format(value);
+                                        }
+                                    }
+                                }
+                            },
+                            // Optional: Atur bar thickness
+                            barPercentage: 0.9,
+                            categoryPercentage: 0.8
                         }
                     });
                 }
@@ -608,6 +679,7 @@
                 console.error('Error loading warehouse category chart:', error);
             }
         }
+
 
         // Document ready
         $(document).ready(function () {
