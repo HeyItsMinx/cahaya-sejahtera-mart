@@ -28,7 +28,7 @@
                     <li class="nav-item">
                         <a class="nav-link text-dark fw-medium" href="{{ route('procurement.index') }}">
                             <i data-feather="shopping-cart" class="icon-dual icon-xs me-1"></i>
-                            Procurement
+                            Inventory Receipt 
                         </a>
                     </li>
                 </ul>
