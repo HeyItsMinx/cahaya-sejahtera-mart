@@ -283,7 +283,7 @@
         <!-- Page Title -->
         <div class="row mb-4">
             <div class="col-12">
-                <h1 class="page-title">📊 Average Lead Time by Vendor - Monthly Analysis</h1>
+                <h1 class="page-title">Average Lead Time by Vendor - Monthly Analysis</h1>
                 <p class="page-subtitle">Average duration (days) from Purchase Order creation to warehouse receipt, grouped by vendor and month</p>
             </div>
         </div>
