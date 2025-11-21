@@ -238,13 +238,13 @@
 
             if (absValue >= 1000000000) {
                 // Miliar
-                formatted = (value / 1000000000).toFixed(2) + ' B'; // M = Miliar
+                formatted = (value / 1000000000).toFixed(2) + 'B'; // M = Miliar
             } else if (absValue >= 1000000) {
                 // Juta
-                formatted = (value / 1000000).toFixed(2) + ' M';
+                formatted = (value / 1000000).toFixed(2) + 'M';
             } else if (absValue >= 1000) {
                 // Ribu
-                formatted = (value / 1000).toFixed(2) + ' K';
+                formatted = (value / 1000).toFixed(2) + 'K';
             } else {
                 formatted = value.toFixed(0);
             }
