@@ -101,46 +101,99 @@ class InventoryController extends Controller
             });
         }
 
-        // Build date list
-        $dateQuery = DimDate::query();
-
         if ($request->filled('date')) {
             // Jika ada filter date: tampilkan HANYA tanggal yang dipilih
             $dateId = str_replace('-', '', $request->date);
-            $dateQuery->where('date_id', $dateId);
+            $query->where('date_id', $dateId);
+
+            $rows = $query->select('date_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
+                ->groupBy('date_id')
+                ->orderBy('date_id')
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'values' => []
+                    ]
+                ]);
+            }
+
+            $labels = [];
+            $values = [];
+
+            foreach ($rows as $row) {
+                $dm = DimDate::find($row->date_id);
+                $labels[] = $dm ? $dm->full_date->format('d M Y') : $row->date_id;
+                $values[] = (int) $row->total_qty;
+            }
         } else {
-            // Jika TIDAK ada filter date: tampilkan tanggal 1 setiap bulan
-            $dateQuery->whereRaw('DAY(full_date) = 1');
+            // Jika TIDAK ada filter date: ambil tanggal 1 setiap bulan YANG ADA DATANYA
+            // Ambil distinct date_id yang ada di fact, lalu filter yang day = 1
+            $availableDateIds = $query->select('date_id')
+                ->distinct()
+                ->pluck('date_id')
+                ->toArray();
+
+            if (empty($availableDateIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'values' => []
+                    ]
+                ]);
+            }
+
+            // Filter hanya tanggal 1 dari date_id yang tersedia
+            $dateIds = DimDate::whereIn('date_id', $availableDateIds)
+                ->whereRaw('DAY(full_date) = 1')
+                ->orderBy('date_id')
+                ->pluck('date_id')
+                ->toArray();
+
+            if (empty($dateIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'values' => []
+                    ]
+                ]);
+            }
+
+            $query2 = FactInventorySnapshot::query();
+
+            // Reapply filters
+            if ($request->filled('warehouse_id')) {
+                $query2->where('warehouse_id', $request->warehouse_id);
+            }
+
+            if ($request->filled('category')) {
+                $query2->whereHas('product', function ($q) use ($request) {
+                    $q->where('category', $request->category);
+                });
+            }
+
+            $query2->whereIn('date_id', $dateIds);
+
+            $rows = $query2->select('date_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
+                ->groupBy('date_id')
+                ->orderBy('date_id')
+                ->get()
+                ->keyBy('date_id');
+
+            $labels = array_map(function ($d) {
+                $dm = DimDate::find($d);
+                return $dm ? $dm->full_date->format('d M Y') : $d;
+            }, $dateIds);
+
+            $values = array_map(function ($d) use ($rows) {
+                return isset($rows[$d]) ? (int) $rows[$d]->total_qty : 0;
+            }, $dateIds);
         }
-
-        $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
-
-        if (empty($dateIds)) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'labels' => [],
-                    'values' => []
-                ]
-            ]);
-        }
-
-        $query->whereIn('date_id', $dateIds);
-
-        $rows = $query->select('date_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
-            ->groupBy('date_id')
-            ->orderBy('date_id')
-            ->get()
-            ->keyBy('date_id');
-
-        $labels = array_map(function ($d) {
-            $dm = DimDate::find($d);
-            return $dm ? $dm->full_date->format('d M Y') : $d;
-        }, $dateIds);
-
-        $values = array_map(function ($d) use ($rows) {
-            return isset($rows[$d]) ? (int) $rows[$d]->total_qty : 0;
-        }, $dateIds);
 
         return response()->json([
             'success' => true,
@@ -150,6 +203,7 @@ class InventoryController extends Controller
             ]
         ]);
     }
+
 
     /**
      * Get quantity by warehouse
@@ -208,44 +262,95 @@ class InventoryController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        // Build date list
-        $dateQuery = DimDate::query();
-
         if ($request->filled('date')) {
             // Jika ada filter date: tampilkan HANYA tanggal yang dipilih
             $dateId = str_replace('-', '', $request->date);
-            $dateQuery->where('date_id', $dateId);
+            $query->where('date_id', $dateId);
+
+            $rows = $query->select('date_id', 'warehouse_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
+                ->with('warehouse')
+                ->groupBy('date_id', 'warehouse_id')
+                ->orderBy('date_id')
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'warehouses' => [],
+                        'data' => new \stdClass()
+                    ]
+                ]);
+            }
+
+            $dateIds = [$dateId];
+            $labels = [];
+            $dm = DimDate::find($dateId);
+            $labels[] = $dm ? $dm->full_date->format('d M Y') : $dateId;
         } else {
-            // Jika TIDAK ada filter date: tampilkan tanggal 1 setiap bulan
-            $dateQuery->whereRaw('DAY(full_date) = 1');
+            // Jika TIDAK ada filter date: ambil tanggal 1 setiap bulan YANG ADA DATANYA
+            $availableDateIds = $query->select('date_id')
+                ->distinct()
+                ->pluck('date_id')
+                ->toArray();
+
+            if (empty($availableDateIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'warehouses' => [],
+                        'data' => new \stdClass()
+                    ]
+                ]);
+            }
+
+            // Filter hanya tanggal 1 dari date_id yang tersedia
+            $dateIds = DimDate::whereIn('date_id', $availableDateIds)
+                ->whereRaw('DAY(full_date) = 1')
+                ->orderBy('date_id')
+                ->pluck('date_id')
+                ->toArray();
+
+            if (empty($dateIds)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'labels' => [],
+                        'warehouses' => [],
+                        'data' => new \stdClass()
+                    ]
+                ]);
+            }
+
+            $labels = array_map(function ($d) {
+                $dm = DimDate::find($d);
+                return $dm ? $dm->full_date->format('d M Y') : $d;
+            }, $dateIds);
+
+            // Rebuild query with filtered dateIds
+            $query2 = FactInventorySnapshot::query();
+
+            // Reapply filters
+            if ($request->filled('category')) {
+                $query2->whereHas('product', function ($q) use ($request) {
+                    $q->where('category', $request->category);
+                });
+            }
+
+            if ($request->filled('warehouse_id')) {
+                $query2->where('warehouse_id', $request->warehouse_id);
+            }
+
+            $query2->whereIn('date_id', $dateIds);
+
+            $rows = $query2->select('date_id', 'warehouse_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
+                ->with('warehouse')
+                ->groupBy('date_id', 'warehouse_id')
+                ->orderBy('date_id')
+                ->get();
         }
-
-        $dateIds = $dateQuery->orderBy('date_id')->pluck('date_id')->toArray();
-
-        if (empty($dateIds)) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'labels' => [],
-                    'warehouses' => [],
-                    'data' => new \stdClass()
-                ]
-            ]);
-        }
-
-        $query->whereIn('date_id', $dateIds);
-
-        $rows = $query->select('date_id', 'warehouse_id', DB::raw('SUM(quantity_on_hand) as total_qty'))
-            ->with('warehouse')
-            ->groupBy('date_id', 'warehouse_id')
-            ->orderBy('date_id')
-            ->get();
-
-        // Ordered unique date_ids already available as $dateIds
-        $labels = array_map(function ($d) {
-            $dm = DimDate::find($d);
-            return $dm ? $dm->full_date->format('d M Y') : $d;
-        }, $dateIds);
 
         // Collect unique warehouses
         $warehouses = $rows->map(function ($r) {
@@ -276,6 +381,7 @@ class InventoryController extends Controller
             ]
         ]);
     }
+
 
     /**
      * Get value by warehouse
