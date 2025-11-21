@@ -37,7 +37,7 @@ Route::prefix('/inventory')->group(function () {
         Route::get('/warehouse-category', [InventoryController::class, 'getWarehouseCategoryData'])->name('inventory.getWarehouseCategoryData');
     });
 
-Route::prefix('/procurement')->group(function () {
+Route::prefix('/inventory-receipt')->group(function () {
     Route::get('/', [ProcurementController::class, 'chartPage'])->name('procurement.index');
     Route::get('/data', [ProcurementController::class, 'chartLeadTimeByVendor'])->name('procurement.data');
 });

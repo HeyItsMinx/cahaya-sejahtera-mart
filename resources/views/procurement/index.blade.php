@@ -550,7 +550,7 @@
         loading.style.display = 'block';
         wrapper.classList.remove('show');
 
-        fetch(`/procurement/data?months=${months}`)
+        fetch(`/inventory-receipt/data?months=${months}`)
             .then(res => res.json())
             .then(result => {
                 loading.style.display = 'none';
