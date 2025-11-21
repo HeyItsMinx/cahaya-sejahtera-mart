@@ -349,14 +349,14 @@
             </div>
         </div>
 
-        <!-- Info Box -->
+        {{-- <!-- Info Box -->
         <div class="row">
             <div class="col-12">
                 <div class="info-box">
                     <strong>Information:</strong> This chart displays the average duration from Purchase Order creation to goods receipt at the warehouse, grouped by vendor and month.
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
@@ -550,7 +550,7 @@
         loading.style.display = 'block';
         wrapper.classList.remove('show');
 
-        fetch(`/procurement/chart-lead-time/data?months=${months}`)
+        fetch(`/procurement/data?months=${months}`)
             .then(res => res.json())
             .then(result => {
                 loading.style.display = 'none';

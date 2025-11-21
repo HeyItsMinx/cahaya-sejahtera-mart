@@ -54,7 +54,7 @@
 <body>
     <!-- Simplified wrapper structure -->
     <div class="wrapper">
-       {{-- @include('partials.header') --}}
+       @include('partials.header')
        {{-- @include('partials.navigation') --}}
         
         <!-- Main Content Area -->
